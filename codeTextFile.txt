@@ -1,0 +1,647 @@
+~!@#AdaEQ.m#@!~classdef AdaEQ < handle
+    %UNTITLED Summary of this class goes here
+    %   Detailed explanation goes here
+    
+    properties
+        P;
+        Q;
+        
+        L; % length of channel ISI
+        Mu; % step size
+        MaxErr;
+        
+        Statistics;
+        tmpData;
+    end
+    
+    methods
+        function obj = AdaEQ(L, dMu)
+            obj.P = zeros(2*L+1,1);
+            obj.P(L+1) = 1;
+            obj.Q = zeros(2*L+1,1);
+            obj.Q(L+1) = 0;
+            obj.L = L;
+            obj.Mu = dMu;
+            obj.Statistics = {};
+            obj.Statistics.E = [];
+            obj.Statistics.sn = [];
+            obj.Statistics.symbHard = [];
+            obj.Statistics.P = [];
+            obj.Statistics.Q = [];
+            
+        end
+        
+%         e is hard
+        function eqOut = turboEqualize(obj, chanOut,estOut,mu)
+             if nargin < 4
+                mu = obj.Mu;
+             end
+            
+            N = length(estOut)-obj.L;
+           
+            r = [chanOut;zeros(obj.L,1);];
+            d = [estOut;zeros(obj.L,1);];
+            obj.Q(obj.L+1) = 0;
+            eqOut = zeros(N,1);
+            
+            err = zeros(N,1);
+            sn = zeros(N,1);
+            symbHard = zeros(N,1);
+            
+            for i=1:N
+                ind = i+obj.L;
+                R = flip(r(ind-obj.L:ind+obj.L));
+                D = flip(d(ind-obj.L:ind+obj.L));
+                
+                sn_ = obj.P.' * R - obj.Q.' * D;
+                e = sn_-getHard(d(ind));
+                err(i) = e;
+                sn(i) = sn_;
+                symbHard(i) = getHard(estOut(i));
+                
+                obj.P = obj.P - mu*conj(R)*e;
+                obj.Q = obj.Q + mu*conj(D)*e;
+                obj.Q(obj.L+1) = 0;
+
+                eqOut(i) = sn_;
+                d(ind) = getHard(sn_);
+                
+            end
+            obj.Statistics.E = [obj.Statistics.E;err];
+            obj.Statistics.sn = [obj.Statistics.sn;sn];
+            obj.Statistics.symbHard = [obj.Statistics.symbHard;symbHard];
+            obj.Statistics.P = [obj.Statistics.P obj.P];
+            obj.Statistics.Q = [obj.Statistics.Q obj.Q];
+        end
+        
+        function eqOut = turboEqualize_train(obj, chanOut,estOut,mu)
+             if nargin < 4
+                mu = obj.Mu;
+             end
+            
+            N = length(estOut);
+           
+            r = [zeros(obj.L,1);chanOut;zeros(obj.L,1);];
+            d = [zeros(obj.L,1);estOut;zeros(obj.L,1);];
+            obj.Q(obj.L+1) = 0;
+            eqOut = zeros(N,1);
+            
+            err = zeros(N,1);
+            sn = zeros(N,1);
+            symbHard = zeros(N,1);
+            
+            for i=1:N
+                ind = i+obj.L;
+                R = flip(r(ind-obj.L:ind+obj.L));
+                D = flip(d(ind-obj.L:ind+obj.L));
+                
+                sn_ = obj.P.' * R - obj.Q.' * D;
+                e = sn_-getHard(estOut(i));
+                err(i) = e;
+                sn(i) = sn_;
+                symbHard(i) = getHard(estOut(i));
+                
+                obj.P = obj.P - mu*conj(R)*e;
+                obj.Q = obj.Q + mu*conj(D)*e;
+                obj.Q(obj.L+1) = 0;
+
+                eqOut(i) = sn_;
+%                 d(ind) = getHard(sn_);
+                
+            end
+            obj.Statistics.E = [obj.Statistics.E;err];
+            obj.Statistics.sn = [obj.Statistics.sn;sn];
+            obj.Statistics.symbHard = [obj.Statistics.symbHard;symbHard];
+            obj.Statistics.P = [obj.Statistics.P obj.P];
+            obj.Statistics.Q = [obj.Statistics.Q obj.Q];
+        end
+        
+        
+        
+        function eqOut = dfeEqualize(obj, chanOut, mu)
+             if nargin < 4
+                mu = obj.Mu;
+             end
+            
+            N = length(chanOut)-obj.L - (obj.L-1);
+           
+            r = [chanOut;zeros(obj.L,1);];
+            d = [getHard(chanOut);zeros(obj.L,1);];
+            obj.Q(obj.L+1) = 0;
+            eqOut = zeros(N,1);
+            
+            err = zeros(N,1);
+            sn = zeros(N,1);
+            symbHard = zeros(N,1);
+            
+            for i=1:N
+                ind = i+obj.L;
+                R = flip(r(ind-obj.L:ind+obj.L));
+                D = flip(d(ind-obj.L:ind+obj.L));
+                
+                sn_ = obj.P.' * R - obj.Q.' * D;
+                e = sn_- getHard(sn_);
+                err(i) = e;
+                sn(i) = sn_;
+                symbHard(i) = getHard(d(ind));
+                
+                obj.P = obj.P - mu*conj(R)*e;
+                obj.Q = obj.Q + mu*conj(D)*e;
+                obj.Q(obj.L+1) = 0;
+
+                eqOut(i) = sn_;
+                d(ind) = getHard(sn_);
+                
+            end
+            obj.Statistics.E = [obj.Statistics.E;err];
+            obj.Statistics.sn = [obj.Statistics.sn;sn];
+            obj.Statistics.symbHard = [obj.Statistics.symbHard;symbHard];
+            obj.Statistics.P = [obj.Statistics.P obj.P];
+            obj.Statistics.Q = [obj.Statistics.Q obj.Q];
+        end
+        
+        
+        
+        
+        function eqOut = normalEqualize_train(obj, chanOut,estOut,mu)
+            if nargin < 4
+                mu = obj.Mu;
+            end
+             
+            N = length(estOut);
+           
+            r = [zeros(obj.L,1);chanOut;zeros(obj.L,1);]; 
+            d = [zeros(obj.L,1);estOut;zeros(obj.L,1);];
+            obj.Q(obj.L+1) = 0;
+            eqOut = zeros(N,1);
+            for i=1:N
+                ind = i+obj.L;
+                R = flip(r(ind-obj.L:ind+obj.L));
+                D = flip(d(ind-obj.L:ind+obj.L));
+                
+                sn = obj.P.' * R - obj.Q.' * D;
+                
+                e = sn-estOut(i);
+                
+                obj.P = obj.P - mu*conj(R)*e;
+                obj.Q = obj.Q + mu*conj(D)*e;
+                obj.Q(obj.L+1) = 0;
+                eqOut(i) = sn;
+            end
+        end
+        function eqOut = normalEqualize_run(obj, chanOut,mu)
+            if nargin < 4
+                mu = obj.Mu;
+            end
+             
+            N = length(chanOut)-(obj.L-1)-obj.L;
+           
+            r = [chanOut;zeros(obj.L,1);]; 
+            d = [getHard(chanOut);zeros(obj.L,1);];
+            obj.Q(obj.L+1) = 0;
+            eqOut = zeros(N,1);
+            for i=1:N
+                ind = i+obj.L;
+                R = flip(r(ind-obj.L:ind+obj.L));
+                D = flip(d(ind-obj.L:ind+obj.L));
+                
+                sn = obj.P.' * R - obj.Q.' * D;
+                
+                e = sn-getHard(sn);
+                
+                obj.P = obj.P - mu*conj(R)*e;
+                obj.Q = obj.Q + mu*conj(D)*e;
+                obj.Q(obj.L+1) = 0;
+                eqOut(i) = sn;
+                d(ind) = getHard(sn);
+            end
+            
+        end
+        
+    end
+end
+
+~!@#bit2base.m#@!~function nums = bit2base(bits,m)
+    rshape = reshape(bits,log2(m),length(bits)/log2(m))';
+    nums = bin2dec(num2str(rshape));
+end
+
+~!@#calcError.m#@!~function ErrNum = calcError(a, b, hard)
+    if nargin < 3
+        ErrNum = sum(abs(a - b)) / length(a);
+    else
+        ErrNum = sum(abs(hard(a) ~= hard(b))) / length(a);
+    end
+end
+
+~!@#ChannelPass.m#@!~function chSymbs = ChannelPass(symbs, h, nvar)
+    chSymbs = conv(symbs,h, "full");
+    chSymbs = chSymbs + nvar * randn(size(chSymbs));
+end
+
+~!@#DecoderPath.m#@!~function [dn_, Decoded] = DecoderPath(sn, repNum)
+    K = length(sn)/repNum;
+    % deinterleaved
+    idk = interleave(sn,true);
+    % demapping
+    ick = symbDemap(idk);
+    % decode
+    iaktmp = reshape(ick, [repNum, K*2]);
+    iak = sum(iaktmp,1)/repNum;
+    Decoded = iak > 0.5;
+    
+    % re-encrypt
+    dn_ = EncryptorPath(iak, repNum);
+end
+
+~!@#EncryptorPath.m#@!~function [dn] = EncryptorPath(bits,repNum)
+    % coded
+    ck = kron(bits, ones(1,repNum));
+    % mapping
+    symbs = symbMap(ck);
+    % interleaved
+    dn = interleave(symbs);
+end
+
+~!@#EQ_script2.m#@!~close all;
+clear;clc;
+
+% channel
+h = [2-0.4j 1.5+1.8j 1 1.2-1.3j 0.8+1.6j];
+% h = [0.9 0.1];
+L = length(h);
+
+mBits = 2; % 2 bit/sym => QPSK
+repNum = 1; % ECC
+nvar = 0.05; % noise var
+
+% create bits
+num_bits = 2^15; % data bit len
+num_train_bits = 2^13; % train bit len
+bits = randi([0 1], 1, num_bits);
+trBits = randi([0 1], 1, num_train_bits);
+
+% create symbols
+num_symb = num_bits*repNum/mBits; % num data symbls
+num_symb_train = num_train_bits/mBits; % num train symbls
+symb_in = EncryptorPath(bits, repNum); % symbles after TX chain (before modulation)
+symb_in_train = symbMap(trBits);
+
+%%
+% channel
+channel_out = ChannelPass([symb_in_train;symb_in], h, nvar);
+symb_chan_train = channel_out(1:num_symb_train+(L-1)); % train symbs after channel with memory of L-1
+symb_chan = channel_out(num_symb_train+1:end);
+
+%% Turbo
+
+% set EQ
+mu = 0.001; % update step size
+EQ_turbo = AdaEQ(L,mu); % set
+hard = @(x) getHard(x);
+maxiter = 10;
+
+% train equlizer
+symb_eq_train = EQ_turbo.turboEqualize_train(symb_chan_train,symb_in_train);
+err = calcError(symb_eq_train, symb_in_train, hard);
+disp(['Turbo - train BER: ' num2str(err) '  MSE:' num2str(mean(abs(symb_eq_train - symb_in_train)))]);
+
+% set params
+MSE_eq = zeros(maxiter,1);
+err_eq = zeros(maxiter,1);
+SE_bit = zeros((num_symb)*maxiter,1);
+pre_in_symb = symb_in_train(end-L+1:end);
+pre_chan_symb = symb_chan_train(end-(L-1)-L+1:end-(L-1));
+symb_chan_input = [pre_chan_symb;symb_chan]; % add L smples for time channel response 
+inds = (1:num_symb);
+
+% equlize data
+figure;hold on;
+for i = 1:maxiter
+    if i == 1 % have no dn_ yet => run simple eq
+        symb_eq = EQ_turbo.normalEqualize_run(symb_chan_input);
+    else
+        symb_dn_input = [pre_in_symb;dn_]; % add L smples for time channel response 
+        symb_eq = EQ_turbo.turboEqualize(symb_chan_input,symb_dn_input);
+    end
+    [dn_, Decoded] = DecoderPath(symb_eq, repNum); % decode and re-encode
+    
+    %print and plot
+    err_eq(i) = calcError(Decoded, bits);
+    MSE_eq(i) = mean(abs(symb_eq - symb_in).^2);
+    SE_bit(inds) = abs(symb_eq - symb_in).^2;
+    plot(inds,SE_bit(inds)); drawnow;
+    fprintf(['Turbo - iteration ' num2str(i) ': BER: ' num2str(err_eq(i)) '  MSE:' num2str(MSE_eq(i))]); fprintf('\n');
+    inds = inds + num_symb;
+end
+
+Stat = EQ_turbo.Statistics;
+xlabel("Filters Update number"); ylabel("bit SE");
+title("bit MSE on each filters update"); grid on;
+hold off;
+
+figure;semilogy(smooth(SE_bit,1000))
+
+
+%% DFE
+
+% set EQ
+mu = 0.001; % update step size
+EQ_dfe = AdaEQ(L,mu); % set
+hard = @(x) getHard(x);
+maxiter = 10;
+
+% train equlizer
+symb_eq_train = EQ_dfe.turboEqualize_train(symb_chan_train,symb_in_train);
+err = calcError(symb_eq_train, symb_in_train, hard);
+disp(['Turbo - train BER: ' num2str(err) '  MSE:' num2str(mean(abs(symb_eq_train - symb_in_train)))]);
+
+% set params
+MSE_eq = zeros(maxiter,1);
+err_eq = zeros(maxiter,1);
+SE_bit = zeros((num_symb)*maxiter,1);
+pre_in_symb = symb_in_train(end-L+1:end);
+pre_chan_symb = symb_chan_train(end-(L-1)-L+1:end-(L-1));
+symb_chan_input = [pre_chan_symb;symb_chan]; % add L smples for time channel response 
+inds = (1:num_symb);
+symb_eq = [pre_chan_symb;symb_chan];
+% equlize data
+figure;hold on;
+for i = 1:maxiter
+    symb_eq = EQ_dfe.dfeEqualize(symb_chan_input);
+    [dn_, Decoded] = DecoderPath(symb_eq, repNum); % decode and re-encode
+    
+%     symb_eq = [pre_chan_symb;symb_eq];
+    %print and plot
+    err_eq(i) = calcError(Decoded, bits);
+    MSE_eq(i) = mean(abs(symb_eq - symb_in).^2);
+    SE_bit(inds) = abs(symb_eq - symb_in).^2;
+    plot(inds,SE_bit(inds)); drawnow;
+    fprintf(['Turbo - iteration ' num2str(i) ': BER: ' num2str(err_eq(i)) '  MSE:' num2str(MSE_eq(i))]); fprintf('\n');
+    inds = inds + num_symb;
+end
+
+Stat = EQ_turbo.Statistics;
+xlabel("Filters Update number"); ylabel("bit SE");
+title("bit MSE on each filters update"); grid on;
+hold off;
+
+figure;semilogy(smooth(SE_bit,1000))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+%%
+
+% figure;plot3(1:length(Stat.symbHard), real(Stat.symbHard), imag(Stat.symbHard),'.'); hold on;
+% plot3(1:length(Stat.sn), real(Stat.sn), imag(Stat.sn),'.')
+% ca = Stat.sn;
+% ca(abs(Stat.sn)<1.05*sqrt(2)) = -inf;
+% plot3(1:length(ca), real(ca), imag(ca),'.k')
+% figure;plot3(1:length(Stat.E), 10*real(Stat.E), 10*imag(Stat.E),'.')
+
+% figure;plot3(1:length(Stat.symbHard), real(Stat.symbHard), imag(Stat.symbHard),'.'); hold on;
+% plot3(1:length(Stat.sn), real(Stat.sn), imag(Stat.sn),'.')
+
+%% Normal EQ
+
+% set EQ
+EQ_dfe = AdaEQ(L,0.001); % set
+
+% train equlizer
+symb_eq_train = EQ_dfe.normalEqualize_train(symb_chan_train,symb_in_train, 0.001);
+err = calcError(symb_eq_train, symb_in_train, hard);
+disp(['normal - train error: ' num2str(err)]);
+
+pre_in_symb = symb_in_train(end-L+1:end);
+pre_chan_symb = symb_chan_train(end-(L-1)-L+1:end-(L-1));
+
+symb_dn_input = [pre_in_symb;symb_chan];
+inds = (1:num_symb);
+
+% set params
+maxiter = 10; 
+MSE_nr = zeros(maxiter,1);
+err_nr = zeros(maxiter,1);
+
+% equlize data
+for i = 1:maxiter
+    symb_eq = EQ_dfe.normalEqualize_run(symb_dn_input, EQ_dfe.Mu);
+
+    symb_dn_input = [pre_in_symb;symb_eq];
+    
+    [~, Decoded] = DecoderPath(symb_eq, repNum);
+    
+    err_nr(i) = calcError(Decoded, bits);
+    MSE_nr(i) = mean(abs(symb_eq - symb_in).^2);
+    
+    disp(['normal - ieration ' num2str(i) ': BER: ' num2str(err_nr(i)) '  MSE:' num2str(MSE_nr(i))]);
+    fprintf('\n')
+%     if err == 0
+%         break;
+%     end
+end
+%%
+% figure(2);semilogy(MSE_eq);hold on;
+% semilogy(MSE_nr);hold off;
+% xlabel("Number of Turbo iteration"); ylabel("MSE");
+% title("MSE"); grid on;
+% 
+% figure(3);hold on;
+% plot(err_eq*100)
+% plot(err_nr*100);hold off;
+% xlabel("Number of Turbo iteration"); ylabel("bit error rate [%]");
+% title("bit error rate"); grid on;
+% 
+
+
+
+
+
+~!@#getHard.m#@!~function hard = getHard(x)
+    hard =  (1+1j)  * and((real(x)>=0),(imag(x)>=0)) + ...
+            (1-1j)  * and((real(x)>=0),(imag(x)<0)) + ...
+            (-1+1j) * and((real(x)<0),(imag(x)>=0)) + ...
+            (-1-1j) * and((real(x)<0),(imag(x)<0));
+end~!@#interleave.m#@!~function resSymbs = interleave(symbs,toDeinterleave)
+    if nargin < 2
+        toDeinterleave = false;
+    end
+    fact = 16;
+    if toDeinterleave
+        tmp = reshape(symbs,[fact,length(symbs)/fact])';
+    else
+        tmp = reshape(symbs,[length(symbs)/fact,fact])';
+    end
+    resSymbs = tmp(:);
+end
+
+~!@#ldpc.m#@!~n_k = 4;
+[h,g,n,k] = hammgen(n_k);
+h_enc = h(:,n_k+1:end);
+H = sparse(h);
+
+L2P = @(x) 1./(1+exp(x));
+
+% ldpcEnc = comm.LDPCEncoder('ParityCheckMatrix',H);
+ldpcDec = comm.LDPCDecoder('ParityCheckMatrix',H, 'DecisionMethod' , 'Soft decision');
+
+qpskMod = comm.QPSKModulator('BitInput',true);
+qpskDemod = comm.QPSKDemodulator('BitOutput',true,...
+    'DecisionMethod','Approximate log-likelihood ratio', ...
+    'VarianceSource','Input port');
+errorCnt = comm.ErrorRate;
+
+noisebD = 3;
+noiseVar = 1/10^(noisebD/10);
+data = randi([0 1],k,1);
+%% Hard Pass
+
+hardData = logical(data);
+
+% hard encode
+encData = mod(h_enc * data, 2);
+outData = [data; encData; 0];
+
+% % channel
+modSig = qpskMod(outData);
+rxSig = awgn(modSig,noisebD);
+demodSig = qpskDemod(rxSig,noiseVar);
+
+% soft decode
+rxL = ldpcDec(demodSig(1:end-1));
+rxP = L2P(rxL)
+% disp(errorCnt(data, rxData));
+
+%% Soft Pass
+softData = data + 0.1*randn(size(data));
+
+% soft encode
+for i=1:n_k
+    encData(i) = softXorMod2(h_enc(i,:) .* softData');
+end
+outData = [softData; encData; 0];
+
+% % channel
+modSig = symbMap(outData);
+rxSig = ChannelPass(modSig, [1], noiseVar);
+demodSig = -2*(2*symbDemap(rxSig)-1);
+
+% soft decode
+rxL = ldpcDec(demodSig(1:end-1));
+rxP = L2P(rxL)
+% disp(errorCnt(data, rxData));
+
+%%
+
+for i=1:n_k
+    encData(i) = softXorMod2(h_enc(i,:) .* rxP');
+end
+outData = [hardData; encData; 0];
+
+
+%%
+n_k = 4;
+[h,g,n,k] = hammgen(n_k);
+
+softIn = randn(k,1);
+hardIn = round(softIn);
+
+% mod(g' * softIn,2)
+% softRes
+for i=1:n
+    softRes(i) = softXorMod2(softIn .* g(:,i));
+end
+
+for i=1:n_k
+    softBack(i) = softXorMod2(softRes .* h(i,:));
+end
+softBack
+% mod(g' * hardIn,2)' + softRes
+
+
+
+
+~!@#mat_from_text.m#@!~function mat_from_text(txtFile, resDirName, delim)
+
+txt = fileread(txtFile);
+
+mkdir(resDirName);
+txt_sections = split(txt, delim);
+for i=1:length(txt_sections)-1   
+    files = split(txt_sections{i+1}, flip(delim));
+    fileName = files{1};
+    disp(fileName);
+    fileData = files{2};
+    
+    id = fopen(['./' resDirName '/' fileName],'a');
+    fprintf(id, '%s', fileData);
+    fclose(id);
+end
+
+disp('Success!');
+end~!@#softXorMod2.m#@!~function [resVal] = softXorMod2(softVec)
+hardVec = mod(round(softVec),2);
+resHard = mod(sum(hardVec),2);
+
+distVal = abs(softVec - round(softVec));
+if isempty(distVal(distVal>0))
+    resVal = resHard;
+else
+    resSoft = mean(distVal(distVal>0)); 
+    resVal = abs(resHard-resSoft); % norm hard output with soft data
+end
+end
+~!@#symbDemap.m#@!~function bits = symbDemap(symbs)
+        symbs = symbs(:);
+        coplexBits = symbs / 2 + (1+1j)/2;
+        realBits = real(coplexBits);
+        imagBits = imag(coplexBits);
+        bits = zeros(2*length(symbs),1);
+        bits(1:2:end) = realBits;
+        bits(2:2:end) = imagBits;
+end
+
+~!@#symbMap.m#@!~function symbs = symbMap(bits)
+        bits = bits(:);
+        rshape = reshape(bits,2,length(bits)/2).';
+        coplexBits = rshape(:,1)+1j*rshape(:,2);
+        symbs = 2*(coplexBits - (1+1j)/2);
+%          = tanh(real())+1j*tanh(imag()));
+end
+
+~!@#text_from_mat.m#@!~function text_from_mat(targetName, delim)
+
+fn = uigetfile('MultiSelect', 'on');
+
+id = fopen(targetName,'a');
+
+for f = fn
+    fprintf(id, delim);
+    fprintf(id, [char(f) flip(delim)]);
+    txt = fileread(char(f));
+    fprintf(id, '%s', txt);
+end
+
+fclose(id);
+
+disp('Success!');

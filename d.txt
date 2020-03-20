@@ -1,0 +1,29 @@
+~!@#
+bit2base.m
+function nums = bit2base(bits,m)
+    rshape = reshape(bits,log2(m),length(bits)/log2(m))';
+    nums = bin2dec(num2str(rshape));
+end
+
+~!@#
+calcError.m
+function ErrNum = calcError(a, b, hard)
+    if nargin < 3
+        ErrNum = sum(abs(a - b)) / length(a);
+    else
+        ErrNum = sum(abs(hard(a) ~= hard(b))) / length(a);
+    end
+end
+
+~!@#
+ChannelPass.m
+function chSymbs = ChannelPass(symbs, h, nvar)
+    chSymbs = conv(symbs,h, "full");
+    chSymbs = chSymbs + nvar * randn(size(chSymbs));
+end
+
+~!@#
+DecoderPath.m
+function [dn_, Decoded] = DecoderPath(sn, repNum)
+    K = length(sn)/repNum;
+    
