@@ -6,8 +6,7 @@ classdef AdaEQ < handle
         P;
         Q;
         
-        Lr; % length of channel ISI
-        Ld;
+        L; % length of channel ISI
         Mu; % step size
         MaxErr;
         overSamp;
@@ -20,8 +19,8 @@ classdef AdaEQ < handle
         function obj = AdaEQ(Lr, Ld, dMu, overSamp)
             obj.P = zeros(2*Lr+1,1);
             obj.P(Lr+1) = 1;
-            obj.Q = zeros(2*Ld+1,1);
-            obj.Q(Ld+1) = 0;
+            obj.Q = zeros(2*L+1,1);
+            obj.Q(L+1) = 0;
             obj.Lr = Lr;
             obj.Ld = Ld;
             obj.Mu = dMu;
@@ -35,12 +34,13 @@ classdef AdaEQ < handle
             
         end
         
+%         e is hard
         function eqOut = turboEqualize(obj, chanOut,estOut,packLen)      
             N = packLen;
            
-            r = [chanOut;zeros(obj.Lr,1);];
-            d = [estOut;zeros(obj.Ld,1);];
-            obj.Q(obj.Ld+1) = 0;
+            r = [chanOut;zeros(obj.L,1);];
+            d = [estOut;zeros(obj.L,1);];
+            obj.Q(obj.L+1) = 0;
             eqOut = zeros(N,1);
             
             err = zeros(N,1);
@@ -48,11 +48,11 @@ classdef AdaEQ < handle
             symbHard = zeros(N,1);
             
             for i=1:N
-                ind = i+obj.Ld;
-                indR = obj.overSamp * (i-1) + obj.Lr+1;
+                ind = i+obj.L;
+                indR = obj.overSamp * (i-1) + obj.L+1;
                 
-                R = flip(r(indR-obj.Lr:indR+obj.Lr));
-                D = flip(d(ind-obj.Ld:ind+obj.Ld));
+                R = flip(r(indR-obj.L:indR+obj.L));
+                D = flip(d(ind-obj.L:ind+obj.L));
                 
                 sn_ = obj.P.' * R - obj.Q.' * D;
                 e = sn_-getHard(d(ind));
@@ -62,7 +62,7 @@ classdef AdaEQ < handle
                 
                 obj.P = obj.P - obj.Mu*conj(R)*e;
                 obj.Q = obj.Q + obj.Mu*conj(D)*e;
-                obj.Q(obj.Ld+1) = 0;
+                obj.Q(obj.L+1) = 0;
 
                 eqOut(i) = sn_;
                 d(ind) = getHard(sn_);
@@ -79,9 +79,9 @@ classdef AdaEQ < handle
             
             N = packLen;
            
-            r = [zeros(obj.Lr,1);chanOut;zeros(obj.Lr,1);];
-            d = [zeros(obj.Ld,1);estOut;zeros(obj.Ld,1);];
-            obj.Q(obj.Ld+1) = 0;
+            r = [zeros(obj.L,1);chanOut;zeros(obj.L,1);];
+            d = [zeros(obj.L,1);estOut;zeros(obj.L,1);];
+            obj.Q(obj.L+1) = 0;
             eqOut = zeros(N,1);
             
             err = zeros(N,1);
@@ -89,11 +89,11 @@ classdef AdaEQ < handle
             symbHard = zeros(N,1);
             
             for i=1:N
-                ind = i+obj.Ld;
-                indR = obj.overSamp * (i-1) + obj.Lr+1;
+                ind = i+obj.L;
+                indR = obj.overSamp * (i-1) + obj.L+1;
                 
-                R = flip(r(indR-obj.Lr:indR+obj.Lr));
-                D = flip(d(ind-obj.Ld:ind+obj.Ld));
+                R = flip(r(indR-obj.L:indR+obj.L));
+                D = flip(d(ind-obj.L:ind+obj.L));
                 
                 sn_ = obj.P.' * R - obj.Q.' * D;
                 e = sn_-getHard(estOut(i));
@@ -103,7 +103,7 @@ classdef AdaEQ < handle
                 
                 obj.P = obj.P - obj.Mu*conj(R)*e;
                 obj.Q = obj.Q + obj.Mu*conj(D)*e;
-                obj.Q(obj.Ld+1) = 0;
+                obj.Q(obj.L+1) = 0;
 
                 eqOut(i) = sn_;
 %                 d(ind) = getHard(sn_);
@@ -116,13 +116,18 @@ classdef AdaEQ < handle
             obj.Statistics.Q = [obj.Statistics.Q obj.Q];
         end
         
-        function eqOut = normalEqualize_run(obj, chanOut,packLen)
-             
-            N = packLen;
+        
+        
+        function eqOut = dfeEqualize(obj, chanOut, mu)
+             if nargin < 4
+                mu = obj.Mu;
+             end
+            
+            N = length(chanOut)-obj.L - (obj.L-1);
            
-            r = [chanOut;zeros(obj.Lr,1);]; 
-            d = [getHard(chanOut(1:obj.overSamp:end));zeros(obj.Ld,1);];
-            obj.Q(obj.Ld+1) = 0;
+            r = [chanOut;zeros(obj.L,1);];
+            d = [getHard(chanOut);zeros(obj.L,1);];
+            obj.Q(obj.L+1) = 0;
             eqOut = zeros(N,1);
             
             err = zeros(N,1);
@@ -130,31 +135,87 @@ classdef AdaEQ < handle
             symbHard = zeros(N,1);
             
             for i=1:N
-                ind = i+obj.Ld;
-                indR = obj.overSamp * (i-1) + obj.Lr+1;
-                
-                R = flip(r(indR-obj.Lr:indR+obj.Lr));
-                D = flip(d(ind-obj.Ld:ind+obj.Ld));
+                ind = i+obj.L;
+                R = flip(r(ind-obj.L:ind+obj.L));
+                D = flip(d(ind-obj.L:ind+obj.L));
                 
                 sn_ = obj.P.' * R - obj.Q.' * D;
-                
-                e = sn_-getHard(sn_);
-                
+                e = sn_- getHard(sn_);
                 err(i) = e;
                 sn(i) = sn_;
-                symbHard(i) = getHard(chanOut(i));
+                symbHard(i) = getHard(d(ind));
                 
-                obj.P = obj.P - obj.Mu*conj(R)*e;
-                obj.Q = obj.Q + obj.Mu*conj(D)*e;
-                obj.Q(obj.Ld+1) = 0;
+                obj.P = obj.P - mu*conj(R)*e;
+                obj.Q = obj.Q + mu*conj(D)*e;
+                obj.Q(obj.L+1) = 0;
+
                 eqOut(i) = sn_;
                 d(ind) = getHard(sn_);
+                
             end
             obj.Statistics.E = [obj.Statistics.E;err];
             obj.Statistics.sn = [obj.Statistics.sn;sn];
             obj.Statistics.symbHard = [obj.Statistics.symbHard;symbHard];
             obj.Statistics.P = [obj.Statistics.P obj.P];
             obj.Statistics.Q = [obj.Statistics.Q obj.Q];
+        end
+        
+        
+        
+        
+        function eqOut = normalEqualize_train(obj, chanOut,estOut,mu)
+            if nargin < 4
+                mu = obj.Mu;
+            end
+             
+            N = length(estOut);
+           
+            r = [zeros(obj.L,1);chanOut;zeros(obj.L,1);]; 
+            d = [zeros(obj.L,1);estOut;zeros(obj.L,1);];
+            obj.Q(obj.L+1) = 0;
+            eqOut = zeros(N,1);
+            for i=1:N
+                ind = i+obj.L;
+                R = flip(r(ind-obj.L:ind+obj.L));
+                D = flip(d(ind-obj.L:ind+obj.L));
+                
+                sn = obj.P.' * R - obj.Q.' * D;
+                
+                e = sn-estOut(i);
+                
+                obj.P = obj.P - mu*conj(R)*e;
+                obj.Q = obj.Q + mu*conj(D)*e;
+                obj.Q(obj.L+1) = 0;
+                eqOut(i) = sn;
+            end
+        end
+        function eqOut = normalEqualize_run(obj, chanOut,packLen)
+             
+            N = packLen;
+           
+            r = [chanOut;zeros(obj.L,1);]; 
+            d1 = mean(reshape(getHard(chanOut(obj.L+1:end-obj.L+1)),obj.overSamp, packLen),1);
+            d = [zeros(obj.L,1);d1(:);zeros(obj.L,1);];
+            obj.Q(obj.L+1) = 0;
+            eqOut = zeros(N,1);
+            for i=1:N
+                ind = i+obj.L;
+                indR = obj.overSamp * (i-1) + obj.L+1;
+                
+                R = flip(r(indR-obj.L:indR+obj.L));
+                D = flip(d(ind-obj.L:ind+obj.L));
+                
+                sn = obj.P.' * R - obj.Q.' * D;
+                
+                e = sn-getHard(sn);
+                
+                obj.P = obj.P - obj.Mu*conj(R)*e;
+                obj.Q = obj.Q + obj.Mu*conj(D)*e;
+                obj.Q(obj.L+1) = 0;
+                eqOut(i) = sn;
+                d(ind) = getHard(sn);
+            end
+            
         end
         
     end

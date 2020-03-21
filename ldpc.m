@@ -1,12 +1,14 @@
-n_k = 4;
+n_k = 12;
 [h,g,n,k] = hammgen(n_k);
 h_enc = h(:,n_k+1:end);
 H = sparse(h);
 
 L2P = @(x) 1./(1+exp(x));
 
-% ldpcEnc = comm.LDPCEncoder('ParityCheckMatrix',H);
-ldpcDec = comm.LDPCDecoder('ParityCheckMatrix',H, 'DecisionMethod' , 'Soft decision');
+ldpcEnc = comm.LDPCEncoder('ParityCheckMatrix',H);
+ldpcDec = comm.LDPCDecoder('ParityCheckMatrix',H, ...
+                           'DecisionMethod' , 'Soft decision', ...
+                           'OutputValue', 'Whole codeword');
 
 qpskMod = comm.QPSKModulator('BitInput',true);
 qpskDemod = comm.QPSKDemodulator('BitOutput',true,...
@@ -14,9 +16,26 @@ qpskDemod = comm.QPSKDemodulator('BitOutput',true,...
     'VarianceSource','Input port');
 errorCnt = comm.ErrorRate;
 
-noisebD = 3;
-noiseVar = 1/10^(noisebD/10);
+noisedB = 10;
+noiseVar = 10^(noisedB/10);
 data = randi([0 1],k,1);
+%% soft using ldpcDec build in func
+
+% encode
+enc = [ldpcEnc(data);0];
+
+% channel
+modSig = qpskMod(enc);
+rxSig = awgn(modSig,noisedB);
+demodSig = qpskDemod(rxSig,noiseVar);
+
+% soft decode
+rxL = ldpcDec(demodSig(1:end-1));
+rxP = L2P(rxL);
+
+hardRX = double(rxP > 0.5);
+disp(errorCnt(data, hardRX(1:k)));
+
 %% Hard Pass
 
 hardData = logical(data);
@@ -27,7 +46,7 @@ outData = [data; encData; 0];
 
 % % channel
 modSig = qpskMod(outData);
-rxSig = awgn(modSig,noisebD);
+rxSig = awgn(modSig,noisedB);
 demodSig = qpskDemod(rxSig,noiseVar);
 
 % soft decode

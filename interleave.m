@@ -2,7 +2,7 @@ function resSymbs = interleave(symbs,toDeinterleave)
     if nargin < 2
         toDeinterleave = false;
     end
-    fact = 16;
+    fact = 2;
     if toDeinterleave
         tmp = reshape(symbs,[fact,length(symbs)/fact])';
     else
