@@ -3,22 +3,22 @@ clear;
 % clc;
 
 % channel
-% h = [2-0.4j 1.5+1.8j 1 1.2-1.3j 0.8+1.6j];
+h = [2-0.4j 1.5+1.8j 1 1.2-1.3j 0.8+1.6j];
 % h = [2-0.4j 1.5+1.8j 1];
-h = [1 0 0 0 0 0];
+% h = [1 0 0 0 0 0];
 
 mBits = 2; % 2 bit/sym => QPSK
-repNum = 3; % ECC
-nvar = 0.01; % noise var
+repNum = 1; % ECC
+nvar = 0.000; % noise var
 SNR = 10*log10(1/nvar);
-overSamp = 2;
+overSamp = 1;
 
 Ld = length(h);
 Lr = overSamp*length(h);
 
 % create bits
-num_bits = 2^13; % data bit len
-num_train_bits = 2^10; % train bit len
+num_bits = 2^15; % data bit len
+num_train_bits = 2^13; % train bit len
 bits = randi([0 1], 1, num_bits);
 trBits = randi([0 1], 1, num_train_bits);
 
@@ -69,8 +69,8 @@ for i = 1:maxiter
         symb_dn_input = [pre_in_symb;dn_]; % add L smples for time channel response 
         symb_eq = EQ_turbo.turboEqualize(symb_chan_input,symb_dn_input, num_symb);
     end
-    [dn_, Decoded] = DecoderPath(symb_eq, repNum); % decode and re-encode
-    
+    [dn_1, Decoded] = DecoderPath(symb_eq, repNum); % decode and re-encode
+    dn_ = dn_1;
     %print and plot
     err_eq(i) = calcError(Decoded, bits);
     MSE_eq(i) = mean(abs(symb_eq - symb_in).^2);
