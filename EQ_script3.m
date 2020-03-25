@@ -1,25 +1,27 @@
-close all;
+% close all;
 clear;
-clc;
+% clc;
 
 %% settings
 
 % set params
-h = [2-0.4j 1.5+1.8j 1 1.2-1.3j 0.8+1.6j];
-nvar = 0.01; % noise var
-overSamp = 2;
+chann.h = [2-0.4j 1.5+1.8j 1 1.2-1.3j 0.8+1.6j];
+% chann.h = [0.8, 0.2];
+chann.SNR = -3; % noise var
+chann.nVar = 10 ^ (-chann.SNR/10);
+chann.overSamp = 2;
 
-Ld = length(h);
-Lr = overSamp*length(h);
+Ld = length(chann.h);
+Lr = chann.overSamp*length(chann.h);
 
-ldpc.k = 48600;
 ldpc.n = 64800;
+ldpc.k = 0.75*ldpc.n;
 
 inputs.num_msg_bits = ldpc.k;
-inputs.num_train_bits = 2^13;
+inputs.num_train_bits = 2^14;
 
 disp('========= Turbo Simulation =========');
-fprintf('SNR: %f, chan L: %d\n', 10*log10(1/nvar), length(h));
+fprintf('SNR: %f, Noise Var: %f, chan L: %d\n', chann.SNR, chann.nVar, length(chann.h));
 fprintf('train num: %d, msg num %d (%f)\n',inputs.num_train_bits,inputs.num_msg_bits, inputs.num_train_bits/inputs.num_msg_bits);
 
 %% init
@@ -47,31 +49,69 @@ inputs.train_symb = symbMap(inputs.train_bits);
 inputs.num_msg_symb = length(inputs.msg_symb);
 inputs.num_train_symb = length(inputs.train_symb);
 
-errorCnt = comm.ErrorRate;
-L2P = @(x) 1./(1+exp(-x));
+pskDemod = comm.PSKDemodulator(4,'BitOutput',true,...
+                                 'DecisionMethod','Approximate log-likelihood ratio',...
+                                 'PhaseOffset',pi/4);
+chann.channel = comm.AWGNChannel('NoiseMethod',"Signal to noise ratio (SNR)", 'SNR', chann.SNR);
 
 %% channel
 
-sn = inputs.msg_symb + 0.01*randn(size(inputs.msg_symb));
+chann.symb_oversamp = kron([inputs.train_symb;inputs.msg_symb],ones(chann.overSamp,1));
 
-bits = symbDemap2(sn);
-bits_dintrlv = helscandeintrlv(bits,intrlv.row,intrlv.col,intrlv.step);
-decoded_llr = ldpc.decoder(bits_dintrlv);
-decoded_bits = double(L2P(decoded_llr) > 0.5);
+chann.out = chann.channel(conv(chann.symb_oversamp,chann.h, "full"));
 
-e = errorCnt(decoded_bits(1:inputs.num_msg_bits), inputs.msg_bits);
-fprintf('ldpc errors: %d (%f)\n', e(2), e(2) / e(3));
+chann.train_symb = chann.out(1:chann.overSamp*inputs.num_train_symb+(Ld-1)); % train symbs after channel with memory of L-1
+chann.msg_symb = chann.out(chann.overSamp*inputs.num_train_symb+1:end);
+chann.num_train = length(chann.train_symb);
+chann.num_msg = length(chann.msg_symb);
 
-hardBits = double(bits_dintrlv(1:inputs.num_msg_bits)>0);
-e = errorCnt(hardBits(1:inputs.num_msg_bits), inputs.msg_bits);
-fprintf('ref  errors: %d (%f)\n', e(2), e(2) / e(3));
-% % oversample
-% os_el = ones(overSamp,1);
-% symb_chan_pre = kron([symb_in_train;symb_in],os_el);
-% 
-% % channel
-% channel_out = ChannelPass(symb_chan_pre, h, nvar);
-% symb_chan_train = channel_out(1:overSamp*num_symb_train+(Ld-1)); % train symbs after channel with memory of L-1
-% symb_chan = channel_out(overSamp*num_symb_train+1:end);
+%% Turbo
+
+% set EQ
+mu = 0.001; % update step size
+maxiter = 10;
+EQ_turbo = AdaEQ(Lr, Ld,mu, chann.overSamp); % set
+hard = @(x) getHard(x);
+
+% train equlizer
+eq.train_symb = EQ_turbo.turboEqualize_train(chann.train_symb,inputs.train_symb, inputs.num_train_symb);
+eq.train_err = calcError(eq.train_symb,inputs.train_symb, hard);
+eq.train_mse = mean(abs(eq.train_symb-inputs.train_symb));
+disp(['Turbo - train BER: ' num2str(eq.train_err) '  MSE:' num2str(eq.train_mse)]);
+
+% set params
+msg_pre_in_symb = inputs.train_symb(end-Ld+1:end);
+msg_pre_chan_symb = chann.train_symb(end-(Ld-1)-Lr+1:end-(Ld-1));
+symb_chan_input = [msg_pre_chan_symb;chann.msg_symb]; % add L smples for time channel response 
+inds = (1:inputs.num_msg_symb);
+
+% equlize data
+figure;hold on;
+for i = 1:maxiter
+    if i == 1 % have no dn_ yet => run simple eq
+        symb_eq = EQ_turbo.normalEqualize_run(symb_chan_input, inputs.num_msg_symb);
+    else
+        symb_dn_input = [msg_pre_in_symb;dn_]; % add L smples for time channel response 
+        symb_eq = EQ_turbo.turboEqualize(symb_chan_input,symb_dn_input, inputs.num_msg_symb);
+    end
+    [dn_, Decoded] = DecoderPath2(symb_eq, ldpc, intrlv, pskDemod); % decode and re-encode
+    %print and plot
+    eq.err_eq(i) = calcError(Decoded, inputs.msg_bits);
+    eq.msg_mse(i) = mean(abs(symb_eq - inputs.msg_symb).^2);
+    SE_bit(inds) = abs(symb_eq - inputs.msg_symb).^2;
+    plot(inds,SE_bit(inds)); drawnow;
+    fprintf(['Turbo - iteration ' num2str(i) ': BER: ' num2str(eq.err_eq(i)) '  MSE:' num2str(eq.msg_mse(i))]); fprintf('\n');
+    inds = inds + inputs.num_msg_symb;
+end
+eq.msg_symb = symb_eq;
+
+Stat = EQ_turbo.Statistics;
+xlabel("Filters Update number"); ylabel("bit SE");
+title("bit MSE on each filters update"); grid on;
+hold off;
+
+figure;semilogy(smooth(SE_bit,1000)); grid on;
+
+
 
 

@@ -9,9 +9,9 @@ h = [2-0.4j 1.5+1.8j 1 1.2-1.3j 0.8+1.6j];
 
 mBits = 2; % 2 bit/sym => QPSK
 repNum = 1; % ECC
-nvar = 0.000; % noise var
+nvar = 2; % noise var
 SNR = 10*log10(1/nvar);
-overSamp = 1;
+overSamp = 2;
 
 Ld = length(h);
 Lr = overSamp*length(h);
