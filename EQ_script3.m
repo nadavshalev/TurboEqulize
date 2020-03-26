@@ -5,13 +5,13 @@
 %% settings
 
 % set params
-% chann.h = [2-0.4j 1.5+1.8j 1 1.2-1.3j 0.8+1.6j];
+chann.h = [2-0.4j 1.5+1.8j 1 1.2-1.3j 0.8+1.6j];
 % chann.h = [0.8, 0.2];
 
 % L = 10;
 % chann.h = randi([-2 2],1,L) + 1j*randi([-2 2],1,L);
 
-chann.SNR = 10; % noise var
+chann.SNR = -3; % noise var
 chann.nVar = 10 ^ (-chann.SNR/10);
 chann.overSamp = 2;
 
