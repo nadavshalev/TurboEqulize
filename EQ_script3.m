@@ -1,24 +1,36 @@
 % close all;
-clear;
+% clear;
 % clc;
 
 %% settings
 
 % set params
-chann.h = [2-0.4j 1.5+1.8j 1 1.2-1.3j 0.8+1.6j];
+% chann.h = [2-0.4j 1.5+1.8j 1 1.2-1.3j 0.8+1.6j];
 % chann.h = [0.8, 0.2];
-chann.SNR = -3; % noise var
+
+% L = 10;
+% chann.h = randi([-2 2],1,L) + 1j*randi([-2 2],1,L);
+
+chann.SNR = 10; % noise var
 chann.nVar = 10 ^ (-chann.SNR/10);
 chann.overSamp = 2;
 
 Ld = length(chann.h);
 Lr = chann.overSamp*length(chann.h);
 
-ldpc.n = 64800;
-ldpc.k = 0.75*ldpc.n;
+ecc.type = 'none';
 
-inputs.num_msg_bits = ldpc.k;
 inputs.num_train_bits = 2^14;
+inputs.num_msg_enc = 64800;
+switch ecc.type
+    case 'ldpc'
+        ecc.n = inputs.num_msg_enc;
+        ecc.r = 0.75;
+        ecc.k = ecc.r * ecc.n;
+        inputs.num_msg_bits = ecc.k;
+    case 'none'
+        inputs.num_msg_bits = inputs.num_msg_enc;
+end
 
 disp('========= Turbo Simulation =========');
 fprintf('SNR: %f, Noise Var: %f, chan L: %d\n', chann.SNR, chann.nVar, length(chann.h));
@@ -26,22 +38,27 @@ fprintf('train num: %d, msg num %d (%f)\n',inputs.num_train_bits,inputs.num_msg_
 
 %% init
 
-% set LDPC
-ldpc.r = ldpc.k/ldpc.n;
-ldpc.H = dvbs2ldpc(ldpc.r);
-ldpc.encoder = comm.LDPCEncoder('ParityCheckMatrix',ldpc.H);
-ldpc.decoder = comm.LDPCDecoder('ParityCheckMatrix',ldpc.H, ...
-                               'DecisionMethod' , 'Soft decision', ...
-                               'OutputValue', 'Whole codeword');
-% set Intrlv
-intrlv.row = 10;
-intrlv.col = ldpc.n/intrlv.row;
-intrlv.step = 3; % hstep is the slope of the diagonal
-
 % create bits
 inputs.msg_bits = randi([0 1], 1, inputs.num_msg_bits)';
 inputs.train_bits = randi([0 1], 1, inputs.num_train_bits)';
-inputs.enc_bits = ldpc.encoder(inputs.msg_bits);
+
+% set ECC
+switch ecc.type
+    case 'ldpc'
+        ecc.H = dvbs2ldpc(ecc.r);
+        ecc.encoder = comm.LDPCEncoder('ParityCheckMatrix',ecc.H);
+        ecc.decoder = comm.LDPCDecoder('ParityCheckMatrix',ecc.H, ...
+                                       'DecisionMethod' , 'Soft decision', ...
+                                       'OutputValue', 'Whole codeword');
+        inputs.enc_bits = ecc.encoder(inputs.msg_bits);
+    case 'none'
+        inputs.enc_bits = inputs.msg_bits;
+end
+
+% set Intrlv
+intrlv.row = 10;
+intrlv.col = inputs.num_msg_enc/intrlv.row;
+intrlv.step = 3; % hstep is the slope of the diagonal
 
 % create symbs
 inputs.msg_symb = EncryptorPath2(inputs.enc_bits, intrlv);
@@ -94,7 +111,7 @@ for i = 1:maxiter
         symb_dn_input = [msg_pre_in_symb;dn_]; % add L smples for time channel response 
         symb_eq = EQ_turbo.turboEqualize(symb_chan_input,symb_dn_input, inputs.num_msg_symb);
     end
-    [dn_, Decoded] = DecoderPath2(symb_eq, ldpc, intrlv, pskDemod); % decode and re-encode
+    [dn_, Decoded] = DecoderPath2(symb_eq, ecc, intrlv, pskDemod); % decode and re-encode
     %print and plot
     eq.err_eq(i) = calcError(Decoded, inputs.msg_bits);
     eq.msg_mse(i) = mean(abs(symb_eq - inputs.msg_symb).^2);
