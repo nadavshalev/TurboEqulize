@@ -1,12 +1,12 @@
-% close all;
-% clear;
+close all;
+clear;
 % clc;
 
 %%
 % load('./LiatModem/rec1.mat');
-% load('./LiatModem/11-Mar-2019 09_12_39.mat');
+load('./LiatModem/11-Mar-2019 09_12_39.mat');
 % load('./LiatModem/11-Mar-2019 09_11_33.mat');
-load('./LiatModem/11-Mar-2019 10_28_43');
+% load('./LiatModem/11-Mar-2019 10_28_43');
 
 inputs.msg_bits = record.TX.info_msg_with_CRC(:);
 
@@ -35,6 +35,8 @@ inputs.enc_bits = ecc.encoder(inputs.msg_bits);
 
 
 % inputs.enc_bits_zp = [inputs.enc_bits;zeros(record.TX.zp_len,1)];
+padd_bits = record.TX.codeBits_zp(ecc.n:end);
+inputs.enc_bits_zp = [inputs.enc_bits;padd_bits(:)];
 inputs.enc_bits_zp = record.TX.codeBits_zp(:);
 
 % set Intrlv
@@ -49,6 +51,8 @@ inputs.msg_symb = symbMap(bits_intrv);
 
 %% compare
 
-codedErr = sum(abs(inputs.enc_bits - record.TX.codeBits(:)))
-intrlvErr = sum(abs(bits_intrv - record.TX.tx_bits(:)))
-symbErr = sum(abs(inputs.msg_symb - record.TX.dataSymbls(:)))
+codedErr = sum(abs(inputs.enc_bits - record.TX.codeBits(:)));
+intrlvErr = sum(abs(bits_intrv - record.TX.tx_bits(:)));
+symbErr = sum(abs(inputs.msg_symb - record.TX.dataSymbls(:)));
+
+fprintf('coded error: %e, interlive error: %e, symble error: %e\n', codedErr, intrlvErr, symbErr)

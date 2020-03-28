@@ -73,8 +73,10 @@ chann.channel = comm.AWGNChannel('NoiseMethod',"Signal to noise ratio (SNR)", 'S
 
 %% channel
 
+% set oversample
 chann.symb_oversamp = kron([inputs.train_symb;inputs.msg_symb],ones(chann.overSamp,1));
 
+% simulate channel
 chann.out = chann.channel(conv(chann.symb_oversamp,chann.h, "full"));
 
 chann.train_symb = chann.out(1:chann.overSamp*inputs.num_train_symb+(Ld-1)); % train symbs after channel with memory of L-1
