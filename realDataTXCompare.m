@@ -35,9 +35,9 @@ inputs.enc_bits = ecc.encoder(inputs.msg_bits);
 
 
 % inputs.enc_bits_zp = [inputs.enc_bits;zeros(record.TX.zp_len,1)];
-padd_bits = record.TX.codeBits_zp(ecc.n:end);
-inputs.enc_bits_zp = [inputs.enc_bits;padd_bits(:)];
-inputs.enc_bits_zp = record.TX.codeBits_zp(:);
+padd_bits = record.TX.codeBits_zp(ecc.n+1:end)';
+inputs.enc_bits_zp = [inputs.enc_bits;padd_bits];
+% inputs.enc_bits_zp = record.TX.codeBits_zp(:);
 
 % set Intrlv
 intrlv.row = record.intrlv.row;
