@@ -9,23 +9,23 @@ load('./LiatModem/11-Mar-2019 09_12_39.mat');
 % load('./LiatModem/11-Mar-2019 10_28_43.mat');
 
 
-ecc.type = 'ldpc';
 
-inputs.num_msg_enc = 64800;
-
-ecc.n = inputs.num_msg_enc;
-ecc.r = 0.75;
-ecc.k = ecc.r * ecc.n;
-inputs.num_msg_bits = ecc.k;
 
 %% init
 
 % set ECC
+ecc.type = 'ldpc';
+ecc.n = 64800;
+ecc.r = 0.75;
+ecc.k = ecc.r * ecc.n;
 ecc.H = dvbs2ldpc(ecc.r);
 ecc.encoder = comm.LDPCEncoder('ParityCheckMatrix',ecc.H);
 ecc.decoder = comm.LDPCDecoder('ParityCheckMatrix',ecc.H, ...
                                        'DecisionMethod' , 'Soft decision', ...
-                                       'OutputValue', 'Whole codeword');
+                                       'OutputValue', 'Whole codeword');    
+                                   
+inputs.num_msg_enc = ecc.n;
+inputs.num_msg_bits = ecc.k;
                                    
 % set Intrlv
 intrlv.row = record.intrlv.row;
@@ -37,6 +37,17 @@ pskDemod = comm.PSKDemodulator(4,'BitOutput',true,...
                                  'PhaseOffset',pi/4,...
                                  'Variance',1);
 L2P = @(x) 1./(1+exp(x));
+
+%%
+
+
+
+
+
+
+
+
+
 
 %% comppadd_bits
 
