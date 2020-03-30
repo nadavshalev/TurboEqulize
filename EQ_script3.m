@@ -18,7 +18,7 @@ chann.overSamp = 2;
 Ld = length(chann.h);
 Lr = chann.overSamp*length(chann.h);
 
-ecc.type = 'none';
+ecc.type = 'ldpc';
 
 inputs.num_train_bits = 2^14;
 inputs.num_msg_enc = 64800;
@@ -131,6 +131,19 @@ hold off;
 
 figure;semilogy(smooth(SE_bit,1000)); grid on;
 
+%% Matlab DFE
 
+DFE = comm.DecisionFeedbackEqualizer('Algorithm','LMS', ...
+    'NumForwardTaps',2*Lr+1,'NumFeedbackTaps',2*Ld+1,'StepSize',mu,...
+    'Constellation',[1 + 1i, -1 + 1i, 1 - 1i, -1 - 1i] / sqrt(2),...
+    'ReferenceTap',Lr,'InputSamplesPerSymbol',2);
 
+[Matlab_Equalized,Matlab_eror,~] = DFE([chann.train_symb.' chann.msg_symb.'].' ,inputs.train_symb);
+figure();
+plot(abs(Matlab_eror))
+grid on;
+xlabel('Symbols');
+ylabel('|e|')
+title("Matlabe DFE");
 
+Matlab_Equalized = Matlab_Equalized((length(inputs.train_symb)+1):end);
