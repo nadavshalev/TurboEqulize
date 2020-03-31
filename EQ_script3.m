@@ -11,7 +11,7 @@ chann.h = [2-0.4j 1.5+1.8j 1 1.2-1.3j 0.8+1.6j];
 % chann.h = randi([-2 2],1,L) + 1j*randi([-2 2],1,L);
 
 
-chann.SNR = -3; % noise var
+chann.SNR = 200; % noise var
 
 chann.nVar = 10 ^ (-chann.SNR/10);
 chann.overSamp = 2;
@@ -180,9 +180,9 @@ figure;semilogy(smooth(SE_bit,1000)); grid on;
 DFE = comm.DecisionFeedbackEqualizer('Algorithm','LMS', ...
     'NumForwardTaps',2*Lr+1,'NumFeedbackTaps',2*Ld+1,'StepSize',mu,...
     'Constellation',[1 + 1i, -1 + 1i, 1 - 1i, -1 - 1i] / sqrt(2),...
-    'ReferenceTap',Lr,'InputSamplesPerSymbol',2);
+    'ReferenceTap',Lr+1,'InputSamplesPerSymbol',2);
 
-[Matlab_Equalized,Matlab_eror,~] = DFE([chann.train_symb.' chann.msg_symb.'].' ,inputs.train_symb);
+[Matlab_Equalized,Matlab_eror,~] = DFE(chann.out ,inputs.train_symb);
 figure();
 plot(abs(Matlab_eror))
 grid on;
