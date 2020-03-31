@@ -6,12 +6,12 @@
 
 % set params
 chann.h = [2-0.4j 1.5+1.8j 1 1.2-1.3j 0.8+1.6j];
-% chann.h = [0.9 0.1];
+% chann.h = [0.9 0.5j+1 0.1-2j];
 
 % L = 10;
 % chann.h = randi([-2 2],1,L) + 1j*randi([-2 2],1,L);
 
-chann.SNR = 200; % noise var
+chann.SNR = 10; % noise var
 chann.nVar = 10 ^ (-chann.SNR/10);
 chann.overSamp = 2;
 
@@ -20,10 +20,10 @@ Lr = chann.overSamp*length(chann.h);
 
 ecc.type = 'ldpc';
 
-inputs.num_train_bits = 2^10;
+inputs.num_train_bits = 2^9;
 inputs.num_msg_enc = 64800;
 switch ecc.type
-    case 'ldpc'
+    case 'none'
         ecc.n = inputs.num_msg_enc;
         ecc.r = 0.75;
         ecc.k = ecc.r * ecc.n;
@@ -148,6 +148,7 @@ figure;hold on;
 for i = 1:maxiter
     if i == 1 % have no dn_ yet => run simple eq
         [symb_eq, train_eq] = EQ_turbo.normalEqualizeCombined_run(chann.out, inputs.train_symb, isTrain, numTotal);
+        symb_eq = circshift(symb_eq,-1);
     else
         [symb_eq, train_eq] = EQ_turbo.turboEqualizeCombined(chann.out,dn_, inputs.train_symb, isTrain, numTotal);
     end

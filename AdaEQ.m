@@ -140,6 +140,7 @@ classdef AdaEQ < handle
                 
                 sn_ = obj.P.' * R - obj.Q.' * D;
                 e = sn_-getHard(d(ind));
+                
                 err(i) = e;
                 sn(i) = sn_;
 %                 symbHard(i) = getHard(estOut(i));
@@ -213,7 +214,7 @@ classdef AdaEQ < handle
             d = zeros(packLen,1);
             d(isTrain)  = trainSymb;
             chanS = chanOut(1:obj.overSamp:obj.overSamp * packLen);
-            d(~isTrain) = getHard(chanS(~isTrain));
+            d(~isTrain) = chanS(~isTrain);
             
             r = [zeros(obj.Lr,1);chanOut;zeros(obj.Lr,1);]; 
             d = [zeros(obj.Ld,1);d;zeros(obj.Ld,1);];
