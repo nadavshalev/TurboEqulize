@@ -18,6 +18,7 @@ record.RX.res.dfe_out_hard = rxOutput_SC.demodOutput.DFEOut.estSymbols;
 record.RX.res.res_bits = rxOutput_SC.rx_msg_bits;
 record.RX.res.after_demap = rxOutput_SC.codeBits_rx;
 record.RX.res.after_deintlv = rxOutput_SC.LLRs;
+record.RX.isTrain = rxOutput_SC.demodOutput.DFEOut.training_vec;
 
 
 record.intrlv.row = interleaverParams.nIntrlvRows;
