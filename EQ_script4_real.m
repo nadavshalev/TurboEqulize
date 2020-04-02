@@ -1,13 +1,19 @@
-% close all;
-% clear;
-% clc;
+close all;
+clear;
+clc;
 
 %% settings
 
 load('./LiatModem/11-Mar-2019 09_12_39.mat');
-% load('./LiatModem/11-Mar-2019 09_11_33.mat');
-% load('./LiatModem/11-Mar-2019 10_28_43.mat');
+Ld = 2;
+Lr = 12;
 
+% load('./LiatModem/11-Mar-2019 09_11_33.mat');
+
+
+% load('./LiatModem/11-Mar-2019 10_28_43.mat');
+% Ld = 2;
+% Lr = 8;
 
 
 
@@ -39,11 +45,9 @@ pskDemod = comm.PSKDemodulator(4,'BitOutput',true,...
 L2P = @(x) 1./(1+exp(x));
 
 
-Ld = 5;
-Lr = 2 * Ld;
 
-inputs.num_train_symb = 1000;
 inputs.train_symb = record.RX.train_symb(:);
+inputs.num_train_symb = length(inputs.train_symb);
 inputs.msg_bits = record.TX.info_msg_with_CRC(:);
 inputs.msg_symb = record.TX.dataSymbls(:);
 inputs.num_msg_symb = length(record.TX.dataSymbls);
@@ -59,24 +63,31 @@ chann.msg_symb = chann.out(chann.overSamp*inputs.num_train_symb+1:end);
 chann.num_train = length(chann.train_symb);
 chann.num_msg = length(chann.msg_symb);
 
+Matlab_DFE = comm.DecisionFeedbackEqualizer('Algorithm','RLS', ...
+    'NumForwardTaps',12,'NumFeedbackTaps',4,...
+    'Constellation',[1 + 1i, -1 + 1i, 1 - 1i, -1 - 1i] / sqrt(2),...
+    'ReferenceTap',1,'InputSamplesPerSymbol',2);
+
 
 %%
 
 % set EQ
-mu = 0.01; % update step size
-maxiter = 3;
+mu = 0.05; % update step size
 EQ_turbo = AdaEQ(Lr, Ld,mu, chann.overSamp); % set
 hard = @(x) getHard(x);
 
 % train equlizer
 eq.train_symb = EQ_turbo.turboEqualize_train(chann.train_symb,inputs.train_symb, inputs.num_train_symb);
 eq.train_err = calcError(eq.train_symb,inputs.train_symb, hard);
-eq.train_mse = mean(abs(eq.train_symb-inputs.train_symb));
+eq.train_mse = mean(abs(eq.train_symb-inputs.train_symb).^2);
 disp(['Turbo - train BER: ' num2str(eq.train_err) '  MSE:' num2str(eq.train_mse)]);
+
+% figure;plot(abs(eq.train_symb-inputs.train_symb).^2);
 
 
 % set params
-EQ_turbo.Mu = 0.01;
+maxiter = 10;
+EQ_turbo.Mu = 0.05;
 msg_pre_in_symb = inputs.train_symb(end-Ld+1:end);
 msg_pre_chan_symb = chann.train_symb(end-(Ld-1)-Lr+1:end-(Ld-1));
 symb_chan_input = [msg_pre_chan_symb;chann.msg_symb]; % add L smples for time channel response 
@@ -86,10 +97,9 @@ inds = (1:inputs.num_msg_symb);
 figure;hold on;
 for i = 1:maxiter
     if i == 1 % have no dn_ yet => run simple eq
-        symb_eq = EQ_turbo.normalEqualize_run(symb_chan_input, inputs.num_msg_symb);
-%         [dn_, ~] = DecoderPath_real(getHard(chann.msg_symb(1:chann.overSamp:end)), ecc, intrlv, pskDemod, inputs.padd_bits);
-%         symb_dn_input = [msg_pre_in_symb;dn_];
-%         symb_eq = EQ_turbo.turboEqualize(symb_chan_input,symb_dn_input, inputs.num_msg_symb);
+        symb_eq = record.RX.res.dfe_out_soft(inputs.num_train_symb+1:end);
+%         [eq_matlab,~,~] = Matlab_DFE(chann.out ,inputs.train_symb);
+%         symb_eq = eq_matlab(inputs.num_train_symb+1:end);
     else
         symb_dn_input = [msg_pre_in_symb;dn_]; % add L smples for time channel response 
         symb_eq = EQ_turbo.turboEqualize(symb_chan_input,symb_dn_input, inputs.num_msg_symb);
@@ -108,118 +118,76 @@ end
 eq.msg_symb = symb_eq;
 
 Stat = EQ_turbo.Statistics;
-xlabel("Filters Update number"); ylabel("bit SE");
-title("bit MSE on each filters update"); grid on;
-hold off;
 
 figure;semilogy(smooth(SE_bit,1000)); grid on;
 
 
-
 %%
-sz = 50;
-ids = 1:sz;
-x = [];
-for i = 1:floor(inputs.num_msg_symb/sz)
-    x(i) = (symb_eq(ids)' * inputs.msg_symb(ids)) / sz;
-    ids = ids + sz;
-end
-
-figure;plt3(x); title('xcor 3D');
-t = sz:sz:i*sz;
-figure;plot(t,abs(x)); title('xcor');
-%% comppadd_bits
+% sz = 500;
+% ids = 1:sz;
+% x = [];
+% idx = [];
+% for i = 1:floor(inputs.num_msg_symb/sz)
+%     x(i) = (symb_eq(ids)' * inputs.msg_symb(ids)) / sz;
+%     ids = ids + sz;
+% end
 % 
-% % diff in size from tx to rx
-% cut_factor = (length(record.RX.res.dfe_out_hard) - length(record.TX.dataSymbls));
-% % cut the beggining of rx
-% dfe_out = record.RX.res.dfe_out_hard(cut_factor+1:end);
+% figure;plt3(x); title('xcor 3D');
+% t = sz:sz:i*sz;
 % 
-% dmd = pskDemod(dfe_out);
+% figure;plot(t,abs(x));
+% figure;plot(t,unwrap(angle(x)));
 % 
-% bits_dintrlv = helscandeintrlv(dmd,intrlv.row,intrlv.col,intrlv.step);
-% bits_dintrlv = bits_dintrlv(1:ecc.n);
+% ph = exp(-1j*angle(x));
 % 
-% decoded_llr = ecc.decoder(bits_dintrlv);
-% decoded_bits = L2P(decoded_llr);
-% Decoded = double(decoded_bits(1:ecc.k) > 0.5);
+% x = [];
+% idx = [];
+% ids = 1:sz;
+% for i = 1:floor(inputs.num_msg_symb/sz)
+%     x(i) = ph(i) * (symb_eq(ids)' * inputs.msg_symb(ids)) / sz;
+%     ids = ids + sz;
+% end
 % 
-% % res
+% figure;plt3(x); title('xcor 3D');
+% t = sz:sz:i*sz;
 % 
-% demapErr = sum(abs(dmd/2 - record.RX.res.after_demap(:)));
-% dintrlvErr = sum(abs(bits_dintrlv/2 - record.RX.res.after_deintlv(:)));
-% bitErr = sum(abs(Decoded - record.TX.info_msg_with_CRC(:)));
-% 
-% fprintf('map error: %f, dinterlive error: %f, bit error: %d\n', demapErr, dintrlvErr, bitErr)
-% 
-% %% complete loop
-% padd_bits = record.TX.codeBits_zp(ecc.n+1:end)';
-% dfe_out_soft = record.RX.res.dfe_out_soft(cut_factor+1:end);
+% figure;plot(t,abs(x));
+% figure;plot(t,unwrap(angle(x)));
 % 
 % 
+% %% MATLAB
+% mu = 0.01; % update step size
+% hard = @(x) getHard(x);
 % 
+% % rls(0.99,1)
 % 
+% Matlab_DFE = comm.DecisionFeedbackEqualizer('Algorithm','RLS', ...
+%     'NumForwardTaps',12,'NumFeedbackTaps',4,'StepSize',mu,...
+%     'Constellation',[1 + 1i, -1 + 1i, 1 - 1i, -1 - 1i] / sqrt(2),...
+%     'ReferenceTap',1,'InputSamplesPerSymbol',2);
 % 
+% % sa = smooth(unwrap(angle(chann.out)),100);
+% % e = exp(1j*sa);
 % 
-% [dn_, Decoded] = DecoderPath_real(dfe_out_soft, ecc, intrlv, pskDemod, padd_bits);
+% [eq_matlab,~,~] = Matlab_DFE(chann.out ,inputs.train_symb);
 % 
+% % Matlab_Equalized = Matlab_Equalized((length(inputs.train_symb)+1):end);
+% % 
+% % Matlab_Equalized = Matlab_Equalized(1:(end-((Ld-1)/2)));
 % 
-% % %     demodulate
-% %     dmd = pskDemod(dfe_out_soft);
-% %     
-% % %     deinterlive
-% %     bits_dintrlv = helscandeintrlv(dmd,intrlv.row,intrlv.col,intrlv.step);
-% %     bits_dintrlv = bits_dintrlv(1:ecc.n);
-% %     
-% % %     decode
-% %     decoded_llr = ecc.decoder(bits_dintrlv);
-% %     decoded_bits = L2P(decoded_llr);
-% %     Decoded = double(decoded_bits(1:ecc.k) > 0.5);
-% %     
-% %     % re-encrypt
-% %     decoded_bits_pd = [decoded_bits;padd_bits];
-% %     bits_intrv = helscanintrlv(decoded_bits_pd,intrlv.row,intrlv.col,intrlv.step);
-% %     dn_ = symbMap(bits_intrv);
+% train_eq_matlab = eq_matlab(1:inputs.num_train_symb);
+% msg_eq_matlab = eq_matlab(inputs.num_train_symb+1:end);
 % 
+% Matlab_error = (abs(inputs.msg_symb - msg_eq_matlab)).^2;
 % 
+% MSE_matlab = mean(Matlab_error);
 % 
+% Matlab_BER = calcError(inputs.msg_symb,msg_eq_matlab, hard);
+% fprintf(['MATLAB dfe - BER: ' num2str(Matlab_BER) '  MSE:' num2str(MSE_matlab)]); fprintf('\n');
+%     
+% figure; plot(Matlab_error,'r');
+% grid on;
+% xlabel("bit number");
+% ylabel("SE");
 % 
-% 
-% 
-% 
-% 
-% loopbitErr = sum(abs(Decoded - record.TX.info_msg_with_CRC(:)));
-% loopSymbErr = sum(abs(dn_ - record.TX.dataSymbls(:)));
-% 
-% fprintf('CHAIN - BER: %d, SER: %d\n', loopbitErr, loopSymbErr)
-% 
-% figure;plt3(dn_)
-% hold on;plt3(dfe_out)
-% 
-% 
-% %% Iter
-% 
-% [dn_1, Decoded1] = DecoderPath_real(dfe_out_soft, ecc, intrlv, pskDemod, padd_bits);
-% 
-% loopbitErr = sum(abs(Decoded1 - record.RX.res.res_bits(:)));
-% loopSymbErr = sum(abs(dn_1 - dfe_out));
-% fprintf('CHAIN1 - BER: %d, SER: %d\n', loopbitErr, loopSymbErr)
-% 
-% [dn_2, Decoded2] = DecoderPath_real(dn_1, ecc, intrlv, pskDemod, padd_bits);
-% 
-% loopbitErr = sum(abs(Decoded2 - record.RX.res.res_bits(:)));
-% loopSymbErr = sum(abs(dn_2 - dfe_out));
-% fprintf('CHAIN2 - BER: %d, SER: %d\n', loopbitErr, loopSymbErr)
-% 
-% [dn_3, Decoded3] = DecoderPath_real(dn_2, ecc, intrlv, pskDemod, padd_bits);
-% 
-% loopbitErr = sum(abs(Decoded3 - record.RX.res.res_bits(:)));
-% loopSymbErr = sum(abs(dn_3 - dfe_out));
-% fprintf('CHAIN3 - BER: %d, SER: %d\n', loopbitErr, loopSymbErr)
-% 
-% 
-% figure;hold on;
-% plt3(dn_1);
-% plt3(dn_2);
-% plt3(dn_3);
 
