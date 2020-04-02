@@ -23,7 +23,7 @@ ecc.type = 'ldpc';
 inputs.num_train_bits = 2^9;
 inputs.num_msg_enc = 64800;
 switch ecc.type
-    case 'none'
+    case 'ldpc'
         ecc.n = inputs.num_msg_enc;
         ecc.r = 0.75;
         ecc.k = ecc.r * ecc.n;

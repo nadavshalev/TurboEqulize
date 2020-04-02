@@ -114,58 +114,7 @@ classdef AdaEQ < handle
             obj.Statistics.P = [obj.Statistics.P obj.P];
             obj.Statistics.Q = [obj.Statistics.Q obj.Q];
         end
-        
-        
-        function [msgOut, trainOut] = turboEqualizeCombined(obj, chanOut,estOut, trainSymb, isTrain,packLen)      
-            N = packLen;
-            
-            d = zeros(packLen,1);
-            d(isTrain)  = trainSymb;
-            d(~isTrain) = estOut;
-            r = [zeros(obj.Lr,1);chanOut;zeros(obj.Lr,1);];
-            d = [zeros(obj.Ld,1);d;zeros(obj.Ld,1);];
-            obj.Q(obj.Ld+1) = 0;
-            eqOut = zeros(N,1);
-            
-            err = zeros(N,1);
-            sn = zeros(N,1);
-            symbHard = zeros(N,1);
-            
-            for i=1:N
-                ind = i+obj.Ld;
-                indR = obj.overSamp * (i-1) + obj.Lr+1;
-                
-                R = flip(r(indR-obj.Lr:indR+obj.Lr));
-                D = flip(d(ind-obj.Ld:ind+obj.Ld));
-                
-                sn_ = obj.P.' * R - obj.Q.' * D;
-                e = sn_-getHard(d(ind));
-                
-                err(i) = e;
-                sn(i) = sn_;
-%                 symbHard(i) = getHard(estOut(i));
-                
-                obj.P = obj.P - obj.Mu*conj(R)*e;
-                obj.Q = obj.Q + obj.Mu*conj(D)*e;
-                obj.Q(obj.Ld+1) = 0;
-
-                eqOut(i) = sn_;
-                if ~isTrain(i)
-                    d(ind) = getHard(sn_);
-                end
-                
-            end
-            
-            trainOut = eqOut(isTrain);
-            msgOut = eqOut(~isTrain);
-            
-            obj.Statistics.E = [obj.Statistics.E;err];
-            obj.Statistics.sn = [obj.Statistics.sn;sn];
-            obj.Statistics.symbHard = [obj.Statistics.symbHard;symbHard];
-            obj.Statistics.P = [obj.Statistics.P obj.P];
-            obj.Statistics.Q = [obj.Statistics.Q obj.Q];
-        end
-        
+      
         function eqOut = normalEqualize_run(obj, chanOut,packLen)
              
             N = packLen;
@@ -206,59 +155,7 @@ classdef AdaEQ < handle
             obj.Statistics.P = [obj.Statistics.P obj.P];
             obj.Statistics.Q = [obj.Statistics.Q obj.Q];
         end
-        
-        function [msgOut, trainOut] = normalEqualizeCombined_run(obj, chanOut, trainSymb, isTrain, packLen)
-             
-            N = packLen;
-            
-            d = zeros(packLen,1);
-            d(isTrain)  = trainSymb;
-            chanS = chanOut(1:obj.overSamp:obj.overSamp * packLen);
-            d(~isTrain) = chanS(~isTrain);
-            
-            r = [zeros(obj.Lr,1);chanOut;zeros(obj.Lr,1);]; 
-            d = [zeros(obj.Ld,1);d;zeros(obj.Ld,1);];
-            obj.Q(obj.Ld+1) = 0;
-            eqOut = zeros(N,1);
-            
-            err = zeros(N,1);
-            sn = zeros(N,1);
-            symbHard = zeros(N,1);
-            
-            for i=1:N
-                ind = i+obj.Ld;
-                indR = obj.overSamp * (i-1) + obj.Lr+1;
-                
-                R = flip(r(indR-obj.Lr:indR+obj.Lr));
-                D = flip(d(ind-obj.Ld:ind+obj.Ld));
-                
-                sn_ = obj.P.' * R - obj.Q.' * D;
-                
-                e = sn_-getHard(d(ind));
-                
-                err(i) = e;
-                sn(i) = sn_;
-                symbHard(i) = getHard(chanOut(i));
-                
-                obj.P = obj.P - obj.Mu*conj(R)*e;
-                obj.Q = obj.Q + obj.Mu*conj(D)*e;
-                obj.Q(obj.Ld+1) = 0;
-                eqOut(i) = sn_;
-                if ~isTrain(i)
-                    d(ind) = getHard(sn_);
-                end
-            end
-            
-            trainOut = eqOut(isTrain);
-            msgOut = eqOut(~isTrain);
-            
-            obj.Statistics.E = [obj.Statistics.E;err];
-            obj.Statistics.sn = [obj.Statistics.sn;sn];
-            obj.Statistics.symbHard = [obj.Statistics.symbHard;symbHard];
-            obj.Statistics.P = [obj.Statistics.P obj.P];
-            obj.Statistics.Q = [obj.Statistics.Q obj.Q];
-        end
-        
+
     end
 end
 

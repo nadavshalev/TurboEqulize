@@ -1,6 +1,6 @@
-close all;
-clear;
-clc;
+% close all;
+% clear;
+% clc;
 
 %% settings
 
@@ -64,15 +64,11 @@ chann.num_msg = length(chann.msg_symb);
 
 % set EQ
 mu = 0.01; % update step size
-maxiter = 10;
+maxiter = 3;
 EQ_turbo = AdaEQ(Lr, Ld,mu, chann.overSamp); % set
 hard = @(x) getHard(x);
 
 % train equlizer
-eq.train_symb = EQ_turbo.turboEqualize_train(chann.train_symb,inputs.train_symb, inputs.num_train_symb);
-eq.train_symb = EQ_turbo.turboEqualize_train(chann.train_symb,inputs.train_symb, inputs.num_train_symb);
-eq.train_symb = EQ_turbo.turboEqualize_train(chann.train_symb,inputs.train_symb, inputs.num_train_symb);
-eq.train_symb = EQ_turbo.turboEqualize_train(chann.train_symb,inputs.train_symb, inputs.num_train_symb);
 eq.train_symb = EQ_turbo.turboEqualize_train(chann.train_symb,inputs.train_symb, inputs.num_train_symb);
 eq.train_err = calcError(eq.train_symb,inputs.train_symb, hard);
 eq.train_mse = mean(abs(eq.train_symb-inputs.train_symb));
@@ -80,7 +76,7 @@ disp(['Turbo - train BER: ' num2str(eq.train_err) '  MSE:' num2str(eq.train_mse)
 
 
 % set params
-EQ_turbo.Mu = 1e-2;
+EQ_turbo.Mu = 0.01;
 msg_pre_in_symb = inputs.train_symb(end-Ld+1:end);
 msg_pre_chan_symb = chann.train_symb(end-(Ld-1)-Lr+1:end-(Ld-1));
 symb_chan_input = [msg_pre_chan_symb;chann.msg_symb]; % add L smples for time channel response 
@@ -91,6 +87,9 @@ figure;hold on;
 for i = 1:maxiter
     if i == 1 % have no dn_ yet => run simple eq
         symb_eq = EQ_turbo.normalEqualize_run(symb_chan_input, inputs.num_msg_symb);
+%         [dn_, ~] = DecoderPath_real(getHard(chann.msg_symb(1:chann.overSamp:end)), ecc, intrlv, pskDemod, inputs.padd_bits);
+%         symb_dn_input = [msg_pre_in_symb;dn_];
+%         symb_eq = EQ_turbo.turboEqualize(symb_chan_input,symb_dn_input, inputs.num_msg_symb);
     else
         symb_dn_input = [msg_pre_in_symb;dn_]; % add L smples for time channel response 
         symb_eq = EQ_turbo.turboEqualize(symb_chan_input,symb_dn_input, inputs.num_msg_symb);
@@ -126,7 +125,7 @@ for i = 1:floor(inputs.num_msg_symb/sz)
     ids = ids + sz;
 end
 
-figure;plt3(x); title('xcor');
+figure;plt3(x); title('xcor 3D');
 t = sz:sz:i*sz;
 figure;plot(t,abs(x)); title('xcor');
 %% comppadd_bits
