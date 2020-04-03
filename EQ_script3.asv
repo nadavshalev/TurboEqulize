@@ -15,7 +15,7 @@ Matlab_Channel2 =[.986,.845,.237,.12345+.31j,0];
 Matlab_Channel3 =[0.623,0.489+0.234j,0.398i, 0.21,0];
 My_Channel = [1,1/2,1/4,1/8,1/16,1/32,1/64,1/128,1/256];
 
-chann.h = Porat_and_al;
+chann.h = Matlab_Channel;
 
 % L = 10;
 % chann.h = randi([-2 2],1,L) + 1j*randi([-2 2],1,L);

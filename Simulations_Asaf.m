@@ -36,7 +36,7 @@ ecc.type = 'ldpc';
 
 inputs.num_train_bits = 2^14;
 inputs.num_train_bits = 2^13;
-inputs.num_train_bits = 2^11;
+inputs.num_train_bits = 2^14;
 
 inputs.num_msg_enc = 64800;
 switch ecc.type
