@@ -9,14 +9,20 @@
 % chanels
 
 Porat_and_al = [2-0.4j,1.5+1.8j,1,1.2-1.3j,0.8+1.6j];
-Proakis_A = [0.04,-0.05,0.07,-0.21,-0.5,0.72,0.36,0,0.21,0.03,0.07];
-Proakis_B = [0.407,0.815,0.407];
-Matlab_Channel = [0.227,0.460,0.688,0.460,0.227];
-Matlab_Channel2 =[.986,.845,.237,.12345+.31j,0];
-Matlab_Channel3 =[0.623,0.489+0.234j,0.398i, 0.21,0];
-My_Channel = [1,1/2,1/4,1/8,1/16,1/32,1/64,1/128,1/256];
+Pro
+% chann.h = [2-0.4j,1.5+1.8j,1,1.2-1.3j,0.8+1.6j];
 
-chann.h = Proakis_B;
+% Proakis A
+% chann.h = [0.04,-0.05,0.07,-0.21,-0.5,0.72,0.36,0,0.21,0.03,0.07];
+
+% Proakis B
+% chann.h = [0.407 0.815 0.407];
+
+% My invention
+% chann.h = [1,1/2,1/4,1/8,1/16,1/32,1/64,1/128,1/256];
+
+% Matlab channel
+% chann.h = [0.227,0.460,0.688,0.460,0.227];
 
 % L = 10;
 % chann.h = randi([-2 2],1,L) + 1j*randi([-2 2],1,L);
@@ -88,6 +94,12 @@ pskDemod = comm.PSKDemodulator(4,'BitOutput',true,...
                                  'PhaseOffset',pi/4);
 %chann.channel = comm.AWGNChannel('NoiseMethod',"Signal to noise ratio (SNR)", 'SNR', chann.SNR);
 
+% matlab DFE INIT
+mu = 0.001; % update step size
+hard = @(x) getHard(x);
+
+    
+
 ber_index = 1;
 bers = 0:1:10;
 BER = zeros(1,length(bers));
@@ -111,9 +123,6 @@ for EbNo = bers
     chann.num_msg = length(chann.msg_symb);
 
     %% Matlab DFE
-    
-    mu = 0.001; % update step size
-    hard = @(x) getHard(x);
     
     DFE = comm.DecisionFeedbackEqualizer('Algorithm','LMS', ...
         'NumForwardTaps',2*Lr+1,'NumFeedbackTaps',2*Ld+1,'StepSize',mu,...
@@ -172,7 +181,7 @@ for EbNo = bers
     symb_chan_input = [msg_pre_chan_symb;chann.msg_symb]; % add L smples for time channel response 
     inds = (1:inputs.num_msg_symb);
 
-    %EQ_turbo.Mu = 0.00025;
+    EQ_turbo.Mu = 0.00025;
 
     % equlize data
 %     figure;hold on;
@@ -213,7 +222,7 @@ semilogy(bers,Matlab_BER_lin,'-x');
 grid on;
 xlabel("Eb/N0 [dB]");
 ylabel("Bit Error Rate");
-legend("Turbo","DFE","Linear");
+legend("Turbo","Normal DFE","Linear");
 
 
 

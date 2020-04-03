@@ -5,7 +5,22 @@
 %% settings
 
 % set params
-chann.h = [2-0.4j 1.5+1.8j 1 1.2-1.3j 0.8+1.6j];
+% chanels
+
+% Porat and al
+ chann.h = [2-0.4j 1.5+1.8j 1 1.2-1.3j 0.8+1.6j];
+
+% Proakis A
+% chann.h = [0.04,-0.05,0.07,-0.21,-0.5,0.72,0.36,0,0.21,0.03,0.07];
+
+% Proakis B
+% chann.h = [0.407 0.815 0.407];
+
+% My invention
+% chann.h = [1,1/2,1/4,1/8,1/16,1/32,1/64,1/128,1/256];
+
+% Matlab channel
+% chann.h = [0.227 0.460 0.688 0.460 0.227];
 
 % L = 10;
 % chann.h = randi([-2 2],1,L) + 1j*randi([-2 2],1,L);
