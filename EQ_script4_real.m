@@ -4,17 +4,17 @@ clc;
 
 %% settings
 % 
-load('./LiatModem/11-Mar-2019 09_12_39.mat');
-Ld = 2;
-Lr = 12;
+% load('./LiatModem/11-Mar-2019 09_12_39.mat');
+% Ld = 2;
+% Lr = 9;
 
 % load('./LiatModem/11-Mar-2019 09_11_33.mat');
 % Ld = 2;
 % Lr = 16;
 
-% load('./LiatModem/11-Mar-2019 10_28_43.mat');
-% Ld = 2;
-% Lr = 8;
+load('./LiatModem/11-Mar-2019 10_28_43.mat');
+Ld = 2;
+Lr = 6;
 
 
 
@@ -78,7 +78,7 @@ chann.num_msg = length(chann.msg_symb);
 %%
 
 % params
-mu = 0.06; % update step size
+mu = 0.0605; % update step size
 maxiter = 10;
 
 % set EQ
@@ -103,9 +103,9 @@ inds = (1:inputs.num_msg_symb);
 figure;hold on;
 for i = 1:maxiter
     if i == 1 % have no dn_ yet => run simple eq
-%         symb_eq = record.RX.res.dfe_out_soft(inputs.num_train_symb+1:end);
-        [eq_matlab,~,~] = Matlab_DFE(chann.out ,inputs.train_symb);
-        symb_eq = eq_matlab(inputs.num_train_symb+1:end);
+        symb_eq = record.RX.res.dfe_out_soft(inputs.num_train_symb+1:end);
+%         [eq_matlab,~,~] = Matlab_DFE(chann.out ,inputs.train_symb);
+%         symb_eq = eq_matlab(inputs.num_train_symb+1:end);
     else
         symb_dn_input = [msg_pre_in_symb;dn_]; % add L smples for time channel response 
         symb_eq = EQ_turbo.turboEqualize(symb_chan_input,symb_dn_input, inputs.num_msg_symb);
