@@ -18,6 +18,12 @@ My_Channel = [1,1/2,1/4,1/8,1/16,1/32,1/64,1/128,1/256];
 
 chann.h = Proakis_B;
 
+channel_name =  num2str(chann.h);
+channel_name = regexprep(channel_name,'\s+',' ');
+channel_name(channel_name=='i')='j';
+channel_name = insertAfter(channel_name,' ',', ');
+channel_name = ['[' channel_name ']'];
+
 % L = 10;
 % chann.h = randi([-2 2],1,L) + 1j*randi([-2 2],1,L);
 
@@ -36,7 +42,7 @@ ecc.type = 'ldpc';
 
 inputs.num_train_bits = 2^14;
 inputs.num_train_bits = 2^13;
-inputs.num_train_bits = 2^14;
+inputs.num_train_bits = 2^11;
 
 inputs.num_msg_enc = 64800;
 switch ecc.type
@@ -89,7 +95,7 @@ pskDemod = comm.PSKDemodulator(4,'BitOutput',true,...
 %chann.channel = comm.AWGNChannel('NoiseMethod',"Signal to noise ratio (SNR)", 'SNR', chann.SNR);
 
 ber_index = 1;
-bers = 0:1:10;
+bers = 0:1:12;
 BER = zeros(1,length(bers));
 Matlab_BER = zeros(1,length(bers));
 Matlab_BER_lin = zeros(1,length(bers));
@@ -112,7 +118,7 @@ for EbNo = bers
 
     %% Matlab DFE
     
-    mu = 0.001; % update step size
+    mu = 0.003; % update step size
     hard = @(x) getHard(x);
     
     DFE = comm.DecisionFeedbackEqualizer('Algorithm','LMS', ...
@@ -125,25 +131,29 @@ for EbNo = bers
         'Constellation',[1 + 1i, -1 + 1i, 1 - 1i, -1 - 1i] / sqrt(2),...
         'ReferenceTap',1,'InputSamplesPerSymbol',2);   
     
-   [Matlab_Equalized,~,~] = DFE(chann.out ,inputs.train_symb);
+   [DFE_Equalized,~,~] = DFE(chann.out ,inputs.train_symb);
    
    [Linear_Equalizer,~,~] = lin_eq(chann.out ,inputs.train_symb);
 
-    Matlab_Equalized = Matlab_Equalized((length(inputs.train_symb)+1):end);
+    DFE_Equalized = DFE_Equalized((length(inputs.train_symb)+1):end);
     
     Linear_Equalizer = Linear_Equalizer((length(inputs.train_symb)+1):end);
 
-    Matlab_Equalized = Matlab_Equalized(1:(end-((length(chann.h)-1)/2)));
+    DFE_Equalized = DFE_Equalized(1:(end-((length(chann.h)-1)/2)));
     
     Linear_Equalizer = Linear_Equalizer(1:(end-((length(chann.h)-1)/2)));
 
-    Matlab_error = (abs(inputs.msg_symb - Matlab_Equalized)).^2;
+    Matlab_error = (abs(inputs.msg_symb - DFE_Equalized)).^2;
 
     MSE_matlab = mean(Matlab_error);
-
-    Matlab_BER(ber_index) = calcError(inputs.msg_symb,Matlab_Equalized, hard);
     
-    Matlab_BER_lin(ber_index) = calcError(inputs.msg_symb,Linear_Equalizer, hard);
+    [~, Decoded_DFE] = DecoderPath2(DFE_Equalized, ecc, intrlv, pskDemod); % decode and re-encode
+
+    [~, Decoded_LIN] = DecoderPath2(Linear_Equalizer, ecc, intrlv, pskDemod); % decode and re-encode
+
+    Matlab_BER(ber_index) = calcError(inputs.msg_bits,Decoded_DFE);
+    
+    Matlab_BER_lin(ber_index) = calcError(inputs.msg_bits,Decoded_LIN);
 
 %     figure();
 %     semilogy(Matlab_error,'r');
@@ -155,7 +165,7 @@ for EbNo = bers
     %% Turbo
 
     % set EQ
-    mu = 0.001; % update step size
+    mu = 0.003; % update step size
     maxiter = 5;
     EQ_turbo = AdaEQ(Lr, Ld,mu, chann.overSamp); % set
     hard = @(x) getHard(x);
@@ -179,7 +189,7 @@ for EbNo = bers
     for i = 1:maxiter
         if i == 1 % have no dn_ yet => run simple eq
             %symb_eq = EQ_turbo.normalEqualize_run(symb_chan_input, inputs.num_msg_symb);
-            symb_eq = EQ_turbo.turboEqualize(symb_chan_input,[msg_pre_in_symb;Matlab_Equalized], inputs.num_msg_symb);
+            symb_eq = EQ_turbo.turboEqualize(symb_chan_input,[msg_pre_in_symb;DFE_Equalized], inputs.num_msg_symb);
         else
             symb_dn_input = [msg_pre_in_symb;dn_]; % add L smples for time channel response 
             symb_eq = EQ_turbo.turboEqualize(symb_chan_input,symb_dn_input, inputs.num_msg_symb);
@@ -202,8 +212,19 @@ for EbNo = bers
 % 
 %     figure;semilogy(smooth(SE_bit,1000)); grid on;
      BER(ber_index) = eq.err_eq(end);
+     if (EbNo == 3)
+        figure();
+        semilogy(1:1:maxiter,eq.err_eq,'-*');
+        hold on;
+        grid on;
+        xlabel("Turbo iteration");
+        ylabel("Bit Error Rate");
+        
+        title("Convergence of the turbo algorithem with Eb/N0 = "+num2str(EbNo)+" over channel = "+channel_name);
+     end
      ber_index = ber_index +1;
 end
+
 
 figure();
 semilogy(bers,BER,'-*');
@@ -214,6 +235,7 @@ grid on;
 xlabel("Eb/N0 [dB]");
 ylabel("Bit Error Rate");
 legend("Turbo","DFE","Linear");
+title("\mu = "+num2str(mu)+" ,            training = " +num2str(inputs.num_train_bits)+" bits,"+ "          Turbo iterations = "+num2str(maxiter)+",           channel = "+channel_name);
 
 
 
