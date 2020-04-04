@@ -96,7 +96,10 @@ pskDemod = comm.PSKDemodulator(4,'BitOutput',true,...
 
 ber_index = 1;
 bers = 0:1:12;
-BER = zeros(1,length(bers));
+
+maxiter = 4;
+BER = zeros(maxiter,length(bers));
+
 Matlab_BER = zeros(1,length(bers));
 Matlab_BER_lin = zeros(1,length(bers));
 
@@ -147,9 +150,9 @@ for EbNo = bers
 
     MSE_matlab = mean(Matlab_error);
     
-    [~, Decoded_DFE] = DecoderPath2(DFE_Equalized, ecc, intrlv, pskDemod); % decode and re-encode
+    [dn_DFE, Decoded_DFE] = DecoderPath2(DFE_Equalized, ecc, intrlv, pskDemod); % decode and re-encode
 
-    [~, Decoded_LIN] = DecoderPath2(Linear_Equalizer, ecc, intrlv, pskDemod); % decode and re-encode
+    [dn_Liniear, Decoded_LIN] = DecoderPath2(Linear_Equalizer, ecc, intrlv, pskDemod); % decode and re-encode
 
     Matlab_BER(ber_index) = calcError(inputs.msg_bits,Decoded_DFE);
     
@@ -166,7 +169,6 @@ for EbNo = bers
 
     % set EQ
     mu = 0.003; % update step size
-    maxiter = 5;
     EQ_turbo = AdaEQ(Lr, Ld,mu, chann.overSamp); % set
     hard = @(x) getHard(x);
 
@@ -189,7 +191,7 @@ for EbNo = bers
     for i = 1:maxiter
         if i == 1 % have no dn_ yet => run simple eq
             %symb_eq = EQ_turbo.normalEqualize_run(symb_chan_input, inputs.num_msg_symb);
-            symb_eq = EQ_turbo.turboEqualize(symb_chan_input,[msg_pre_in_symb;DFE_Equalized], inputs.num_msg_symb);
+            symb_eq = EQ_turbo.turboEqualize(symb_chan_input,[msg_pre_in_symb;dn_DFE], inputs.num_msg_symb);
         else
             symb_dn_input = [msg_pre_in_symb;dn_]; % add L smples for time channel response 
             symb_eq = EQ_turbo.turboEqualize(symb_chan_input,symb_dn_input, inputs.num_msg_symb);
@@ -197,6 +199,7 @@ for EbNo = bers
         [dn_, Decoded] = DecoderPath2(symb_eq, ecc, intrlv, pskDemod); % decode and re-encode
         %print and plot
         eq.err_eq(i) = calcError(Decoded, inputs.msg_bits);
+        BER(i,ber_index) = calcError(Decoded, inputs.msg_bits);
         eq.msg_mse(i) = mean(abs(symb_eq - inputs.msg_symb).^2);
         SE_bit(inds) = abs(symb_eq - inputs.msg_symb).^2;
 %         plot(inds,SE_bit(inds)); drawnow;
@@ -211,31 +214,34 @@ for EbNo = bers
 %     hold off;
 % 
 %     figure;semilogy(smooth(SE_bit,1000)); grid on;
-     BER(ber_index) = eq.err_eq(end);
-     if (EbNo == 3)
-        figure();
-        semilogy(1:1:maxiter,eq.err_eq,'-*');
-        hold on;
-        grid on;
-        xlabel("Turbo iteration");
-        ylabel("Bit Error Rate");
-        
-        title("Convergence of the turbo algorithem with Eb/N0 = "+num2str(EbNo)+" over channel = "+channel_name);
-     end
+%      BER(ber_index) = eq.err_eq(end);
+%      if (EbNo == 3)
+%         figure();
+%         semilogy(1:1:maxiter,eq.err_eq,'-*');
+%         hold on;
+%         grid on;
+%         xlabel("Turbo iteration");
+%         ylabel("Bit Error Rate");
+%         
+%         title("Convergence of the turbo algorithem with Eb/N0 = "+num2str(EbNo)+" over channel = "+channel_name);
+%      end
      ber_index = ber_index +1;
 end
 
 
 figure();
-semilogy(bers,BER,'-*');
-hold on;
 semilogy(bers,Matlab_BER,'-o');
+hold on;
 semilogy(bers,Matlab_BER_lin,'-x');
 grid on;
 xlabel("Eb/N0 [dB]");
 ylabel("Bit Error Rate");
 legend("Turbo","DFE","Linear");
 title("\mu = "+num2str(mu)+" ,            training = " +num2str(inputs.num_train_bits)+" bits,"+ "          Turbo iterations = "+num2str(maxiter)+",           channel = "+channel_name);
-
+for i = 1:length(BER(:,1))
+    semilogy(bers,BER(i,:),'-*');
+end
+legend("DFE","Linear","Turbo 1","Turbo 2","Turbo 3","Turbo 4","Turbo 5","Turbo 6","Turbo 7","Turbo 8","Turbo 9","Turbo 10");
+hold on;
 
 
