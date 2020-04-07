@@ -130,7 +130,8 @@ turbo.mu = 0.004;
 % turbo.iter = 10;
 
 % % BEST example + graph
-% load('./LiatModem/11-Mar-2019 15_24_14_c2.mat');
+% % BEST params graph
+load('./LiatModem/11-Mar-2019 15_24_14_c2.mat');
 % turbo.Ld = 40;
 % turbo.Lr = 10;
 % turbo.mu = 0.004;
@@ -155,7 +156,7 @@ turbo.mu = 0.004;
 % turbo.iter = 2;
 
 % % good example
-load('./LiatModem/11-Mar-2019 15_22_22_c2.mat');
+% load('./LiatModem/11-Mar-2019 15_22_22_c2.mat');
 % turbo.Ld = 40;
 % turbo.Lr = 6;
 % turbo.mu = 0.0065;
@@ -228,6 +229,8 @@ Matlab_DFE = comm.DecisionFeedbackEqualizer('Algorithm',dfe.type, ...
     'ReferenceTap',1,'InputSamplesPerSymbol',2,...
     'StepSize', dfe.mu);
 
+
+realDataChannelPlot(chann, inputs);
 %%
 
 
@@ -298,11 +301,11 @@ eq.msg_symb = symb_eq;
 % % muArr = 0.1:0.005:0.13;
 % [resData, minData] = searchEQParams(dn_, chann, inputs, muArr, LrArr, LdArr);
 
-% LrArr = 2:20;
-% LdArr = 1:15;
-% muArr = 0.002:0.001:0.02;
-% N = LrArr * LdArr * muArr;
-% % LrArr = 4:12;
-% % LdArr = 1:4;
-% % muArr = 0.09:0.01:0.1;
-% [resData, minData] = searchEQParamsMATLAB(chann, inputs, LrArr, LdArr, muArr);
+LrArr = 2:20;
+LdArr = 1:15;
+muArr = 0.002:0.001:0.02;
+N = LrArr * LdArr * muArr;
+% LrArr = 4:12;
+% LdArr = 1:4;
+% muArr = 0.09:0.01:0.1;
+[resData, minData] = searchEQParamsMATLAB(chann, inputs, LrArr, LdArr, muArr);
