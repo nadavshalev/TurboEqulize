@@ -26,7 +26,7 @@ for mu = muArr
             rs.mse = msg_mse;
             resData = [resData;rs];
             
-            fprintf('(%d,%d) MSE: %f  (Lr: %d, Ld: %d, mu: %f)\n',round(i), round(N), resData.mse, resData.Lr, resData.Ld, resData.mu);
+            fprintf('(%d,%d) \tMSE: %f  \t(Lr: %d, \tLd: %d, \tmu: %f)\n', i, N, rs.mse, rs.Lr, rs.Ld, rs.mu);
             i = i+1;
         end
     end

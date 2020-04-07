@@ -1,7 +1,10 @@
 % must run liat's script first!
-% file_name = '11-Mar-2019 09_12_39.mat';
-% file_name = '11-Mar-2019 09_11_33.mat';
-file_name = '11-Mar-2019 10_28_43.mat';
+% file_name = '11-Mar-2019 09_12_39_c3.mat';
+% file_name = '11-Mar-2019 09_11_33_c3.mat';
+% file_name = '11-Mar-2019 10_28_43_c3.mat';
+% file_name = '11-Mar-2019 15_24_14_c3.mat';
+% file_name = '11-Mar-2019 15_25_09_c3.mat';
+file_name = '11-Mar-2019 15_22_22_c3.mat';
 
 record.TX.info_msg_bits = info_msg_bits;
 record.TX.info_msg_with_CRC = info_msg_with_CRC;
