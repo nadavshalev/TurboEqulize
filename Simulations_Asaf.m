@@ -16,7 +16,7 @@ Matlab_Channel2 =[.986,.845,.237,.12345+.31j,0];
 Matlab_Channel3 =[0.623,0.489+0.234j,0.398i, 0.21,0];
 My_Channel = [1,1/2,1/4,1/8,1/16,1/32,1/64,1/128,1/256];
 
-chann.h = Proakis_B;
+chann.h = Matlab_Channel3;
 
 channel_name =  num2str(chann.h);
 channel_name = regexprep(channel_name,'\s+',' ');
@@ -34,9 +34,7 @@ chann.nVar = 10 ^ (-chann.SNR/10);
 chann.overSamp = 2;
 
 Ld = length(chann.h);
-%Ld = 20;
 Lr = chann.overSamp*length(chann.h);
-%Lr = 10;
 
 ecc.type = 'ldpc';
 
@@ -121,7 +119,7 @@ for EbNo = bers
 
     %% Matlab DFE
     
-    mu = 0.003; % update step size
+    mu = 0.001; % update step size
     hard = @(x) getHard(x);
     
     DFE = comm.DecisionFeedbackEqualizer('Algorithm','LMS', ...
@@ -168,7 +166,7 @@ for EbNo = bers
     %% Turbo
 
     % set EQ
-    mu = 0.003; % update step size
+    mu = 0.001; % update step size
     EQ_turbo = AdaEQ(Lr, Ld,mu, chann.overSamp); % set
     hard = @(x) getHard(x);
 
@@ -239,9 +237,11 @@ ylabel("Bit Error Rate");
 legend("Turbo","DFE","Linear");
 title("\mu = "+num2str(mu)+" ,            training = " +num2str(inputs.num_train_bits)+" bits,"+ "          Turbo iterations = "+num2str(maxiter)+",           channel = "+channel_name);
 for i = 1:length(BER(:,1))
-    semilogy(bers,BER(i,:),'-*');
+    if (i<5) || (i==10)
+        semilogy(bers,BER(i,:),'-*');
+    end    
 end
-legend("DFE","Linear","Turbo 1","Turbo 2","Turbo 3","Turbo 4","Turbo 5","Turbo 6","Turbo 7","Turbo 8","Turbo 9","Turbo 10");
+legend("DFE","Linear","Turbo 1","Turbo 2","Turbo 3","Turbo 4","Turbo 10");
 hold on;
 
 
