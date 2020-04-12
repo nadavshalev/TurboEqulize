@@ -93,7 +93,7 @@ turbo.mu = 0.004;
 % turbo.Lr = 15;
 % turbo.mu = 0.11;
 % turbo.type = 'LIAT';
-
+% turbo.iter = 5;
 %% HARD --------------------------
 %% 09
 
@@ -104,13 +104,13 @@ turbo.mu = 0.004;
 % turbo.type = 'LIAT';
 % turbo.iter = 2;
 
-% % good example
-% load('./LiatModem/11-Mar-2019 15_25_09_c2.mat');
-% turbo.Ld = 30;
-% turbo.Lr = 3;
-% turbo.mu = 0.005;
-% turbo.type = 'LIAT';
-% turbo.iter = 2;
+% good example
+load('./LiatModem/11-Mar-2019 15_25_09_c2.mat');
+turbo.Ld = 30;
+turbo.Lr = 3;
+turbo.mu = 0.005;
+turbo.type = 'LIAT';
+turbo.iter = 2;
 
 % % good example
 % load('./LiatModem/11-Mar-2019 15_25_09_c3.mat');
@@ -129,14 +129,14 @@ turbo.mu = 0.004;
 % turbo.type = 'LIAT';
 % turbo.iter = 10;
 
-% % BEST example + graph
-% % BEST params graph
-load('./LiatModem/11-Mar-2019 15_24_14_c2.mat');
+% BEST example + graph
+% BEST params graph
+% load('./LiatModem/11-Mar-2019 15_24_14_c2.mat');
 % turbo.Ld = 40;
 % turbo.Lr = 10;
 % turbo.mu = 0.004;
 % turbo.type = 'LIAT';
-% turbo.iter = 24;
+% turbo.iter = 13;
 
 % % BEST example + graph
 % load('./LiatModem/11-Mar-2019 15_24_14_c3.mat');
@@ -163,13 +163,13 @@ load('./LiatModem/11-Mar-2019 15_24_14_c2.mat');
 % turbo.type = 'LIAT';
 % turbo.iter = 4;
 
-% % good example
+% good example
 % load('./LiatModem/11-Mar-2019 15_22_22_c3.mat');
 % turbo.Ld = 40;
 % turbo.Lr = 6;
 % turbo.mu = 0.0065;
 % turbo.type = 'LIAT';
-% turbo.iter = 1;
+% turbo.iter = 3;
 %% init
 
 % set ECC
@@ -230,11 +230,11 @@ Matlab_DFE = comm.DecisionFeedbackEqualizer('Algorithm',dfe.type, ...
     'StepSize', dfe.mu);
 
 
-realDataChannelPlot(chann, inputs);
+% realDataChannelPlot(chann, inputs);
 %%
 
 
-turbo.iter = 5;
+% turbo.iter = 5;
 % turbo.Ld = 17;
 % turbo.Lr = 11;
 % turbo.mu = 0.008;
@@ -249,9 +249,14 @@ eq.train_symb = EQ_turbo.turboEqualize_train(chann.train_symb,inputs.train_symb,
 eq.train_err = calcError(eq.train_symb,inputs.train_symb, hard);
 eq.train_mse = mean(abs(eq.train_symb-inputs.train_symb).^2);
 eq.train_papr = max(abs(eq.train_symb)) / mean(abs(eq.train_symb));
-fprintf('Train: \t\t\tBER: %f \tMSE:%f \tPAPR:%f -----\n', eq.train_err, eq.train_mse, eq.train_papr);
-    
-% figure;plot(abs(eq.train_symb-inputs.train_symb).^2);
+fprintf('Train: \t\t\tBER: %f \realDataChannelPlot(chann, inputs);tMSE:%f \tPAPR:%f -----\n', eq.train_err, eq.train_mse, eq.train_papr);
+
+x = abs(eq.train_symb-inputs.train_symb).^2;
+figure;plot(x);
+grid('on')
+xlabel('Symbol Number')
+ylabel('Square Error')
+title('Equalization Train Error')
 
 % set params
 msg_pre_in_symb = inputs.train_symb(end-turbo.Ld+1:end);
@@ -287,10 +292,21 @@ for i = 1:turbo.iter
     inds = inds + inputs.num_msg_symb;
     
 end
-eq.msg_symb = symb_eq;
+grid('on')
+xlabel('Symbol Number')
+ylabel('Square Error')
+% legend('DFE', 'iter1', 'iter2', 'iter3', 'iter4', 'iter5', 'iter6')
+title('Equalization Error')
+
 
 % figure;semilogy(smooth(SE_bit,1000)); grid on;
-% figure;stem(eq.err_eq)
+figure;stem(eq.err_eq)
+hold on; stem(eq.err_eq(1))
+grid('on')
+xlabel('Iteration')
+ylabel('BER')
+title('Equalization BER')
+legend('Turbo', 'DFE')
 %%
 % LrArr = 6:16;
 % LdArr = 1:5;
@@ -301,11 +317,11 @@ eq.msg_symb = symb_eq;
 % % muArr = 0.1:0.005:0.13;
 % [resData, minData] = searchEQParams(dn_, chann, inputs, muArr, LrArr, LdArr);
 
-LrArr = 2:20;
-LdArr = 1:15;
-muArr = 0.002:0.001:0.02;
-N = LrArr * LdArr * muArr;
-% LrArr = 4:12;
-% LdArr = 1:4;
-% muArr = 0.09:0.01:0.1;
-[resData, minData] = searchEQParamsMATLAB(chann, inputs, LrArr, LdArr, muArr);
+% LrArr = 2:20;
+% LdArr = 1:15;
+% muArr = 0.002:0.001:0.02;
+% N = LrArr * LdArr * muArr;
+% % LrArr = 4:12;
+% % LdArr = 1:4;
+% % muArr = 0.09:0.01:0.1;
+% [resData, minData] = searchEQParamsMATLAB(chann, inputs, LrArr, LdArr, muArr);
