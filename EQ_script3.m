@@ -24,7 +24,7 @@ chann.h = Porat_and_al;
 chann.SNR = 10; % noise var
 
 chann.nVar = 10 ^ (-chann.SNR/10);
-chann.overSamp = 2;
+chann.overSamp = 1;
 
 Ld = length(chann.h);
 Lr = chann.overSamp*length(chann.h);

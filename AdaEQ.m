@@ -260,7 +260,70 @@ classdef AdaEQ < handle
             obj.Statistics.P = [obj.Statistics.P obj.P];
             obj.Statistics.Q = [obj.Statistics.Q obj.Q];
         end
+ 
         
+        
+        function eqOut = liniearEqualize(obj, chanOut,packLen)      
+            N = packLen;
+           
+            r = [chanOut;zeros(obj.Lr,1);];
+            eqOut = zeros(N,1);
+            
+            err = zeros(N,1);
+            sn = zeros(N,1);
+            for i=1:N
+                indR = obj.overSamp * (i-1) + obj.Lr+1;
+                
+                R = flip(r(indR-obj.Lr:indR+obj.Lr));
+                
+                sn_ = obj.P.' * R;
+                e = sn_-getHard(sn_);
+                err(i) = e;
+                sn(i) = sn_;
+                
+                obj.P = obj.P - obj.Mu*conj(R)*e;
+                eqOut(i) = sn_;
+                
+            end
+            obj.Statistics.E = [obj.Statistics.E;err];
+            obj.Statistics.sn = [obj.Statistics.sn;sn];
+            obj.Statistics.P = [obj.Statistics.P obj.P];
+            obj.Statistics.Q = [obj.Statistics.Q obj.Q];            
+        end
+        
+        function eqOut = liniearEqualize_train(obj, chanOut,estOut,packLen)
+            
+            N = packLen;
+           
+            r = [zeros(obj.Lr,1);chanOut;zeros(obj.Lr,1);];
+            eqOut = zeros(N,1);
+            
+            err = zeros(N,1);
+            sn = zeros(N,1);
+            symbHard = zeros(N,1);
+            
+            for i=1:N
+                indR = obj.overSamp * (i-1) + obj.Lr+1;
+                
+                R = flip(r(indR-obj.Lr:indR+obj.Lr));
+                
+                sn_ = obj.P.' * R;
+                e = sn_-getHard(estOut(i));
+                err(i) = e;
+                sn(i) = sn_;
+                symbHard(i) = getHard(estOut(i));
+                
+                obj.P = obj.P - obj.Mu*conj(R)*e;
+
+                eqOut(i) = sn_;
+                
+            end
+            obj.Statistics.E = [obj.Statistics.E;err];
+            obj.Statistics.sn = [obj.Statistics.sn;sn];
+            obj.Statistics.symbHard = [obj.Statistics.symbHard;symbHard];
+            obj.Statistics.P = [obj.Statistics.P obj.P];
+            obj.Statistics.Q = [obj.Statistics.Q obj.Q];
+        end        
     end
 end
 
