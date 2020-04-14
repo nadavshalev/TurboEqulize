@@ -93,7 +93,7 @@ turbo.mu = 0.004;
 % turbo.Lr = 15;
 % turbo.mu = 0.11;
 % turbo.type = 'LIAT';
-% turbo.iter = 5;
+turbo.iter = 5;
 %% HARD --------------------------
 %% 09
 
@@ -105,12 +105,12 @@ turbo.mu = 0.004;
 % turbo.iter = 2;
 
 % good example
-load('./LiatModem/11-Mar-2019 15_25_09_c2.mat');
-turbo.Ld = 30;
-turbo.Lr = 3;
-turbo.mu = 0.005;
-turbo.type = 'LIAT';
-turbo.iter = 2;
+% load('./LiatModem/11-Mar-2019 15_25_09_c2.mat');
+% turbo.Ld = 30;
+% turbo.Lr = 3;
+% turbo.mu = 0.005;
+% turbo.type = 'LIAT';
+% turbo.iter = 2;
 
 % % good example
 % load('./LiatModem/11-Mar-2019 15_25_09_c3.mat');
